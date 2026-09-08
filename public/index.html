@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>GWPG SafetyTrack</title>
+<style>
+  :root{
+    --teal:#0E6654;
+    --teal-dark:#0A4E40;
+    --teal-light:#E6F2EF;
+    --red:#C0392B;
+    --red-light:#FDECEA;
+    --amber:#B7791F;
+    --amber-light:#FEF6E7;
+    --green:#1E8E5A;
+    --green-light:#EAF7EF;
+    --gray-bg:#F4F6F5;
+    --border:#DCE3E0;
+    --text:#1F2A26;
+    --text-mute:#5C6B65;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--gray-bg);color:var(--text);}
+  header.appbar{background:var(--teal);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  header.appbar .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
+  header.appbar .brand .logo{width:34px;height:34px;border-radius:8px;background:#fff;color:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;}
+  header.appbar .brand .title{font-weight:700;font-size:17px;line-height:1.1;}
+  header.appbar .brand .subtitle{font-size:11px;opacity:.85;}
+  header.appbar .navbtns{display:flex;gap:8px;align-items:center;}
+  header.appbar button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;}
+  header.appbar button:hover{background:rgba(255,255,255,.28);}
+  header.appbar .whoami{font-size:12px;opacity:.9;margin-right:4px;}
+  main{max-width:900px;margin:0 auto;padding:16px;padding-bottom:80px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
+  .hero{background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:#fff;border-radius:14px;padding:20px;margin-bottom:18px;}
+  .hero h1{margin:0 0 6px;font-size:20px;}
+  .hero p{margin:0;opacity:.9;font-size:14px;}
+  .searchbox{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);font-size:15px;margin-bottom:14px;background:#fff;}
+  .formlist{display:flex;flex-direction:column;gap:10px;}
+  .formitem{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
+  .formitem:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(14,102,84,.12);}
+  .formitem .fi-left{display:flex;align-items:center;gap:12px;}
+  .formitem .fi-icon{width:40px;height:40px;border-radius:10px;background:var(--teal-light);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .formitem .fi-title{font-weight:600;font-size:15px;}
+  .formitem .fi-meta{font-size:12px;color:var(--text-mute);margin-top:2px;}
+  .formitem .fi-arrow{color:var(--text-mute);font-size:18px;}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
+  .badge.zone{background:var(--teal-light);color:var(--teal-dark);}
+  .badge.equip{background:var(--amber-light);color:var(--amber);}
+  .badge.machine{background:#EFEAFB;color:#5B3EC9;}
+  .sectiontitle{font-weight:700;font-size:16px;margin:22px 0 10px;color:var(--teal-dark);border-bottom:2px solid var(--teal-light);padding-bottom:6px;}
+  .fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  @media(max-width:600px){.fieldrow{grid-template-columns:1fr;}}
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--text-mute);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
+  input[type=text],input[type=date],input[type=number],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;background:#fff;color:var(--text);font-family:inherit;}
+  textarea{resize:vertical;min-height:40px;}
+  .itemrow{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff;}
+  .itemrow .itemlabel{font-size:14.5px;font-weight:600;margin-bottom:8px;}
+  .itemrow .itemsop{font-size:11.5px;color:var(--text-mute);margin-top:-4px;margin-bottom:8px;font-style:italic;}
+  .statusbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .statusbtn{flex:1;min-width:90px;padding:10px 8px;text-align:center;border-radius:8px;border:2px solid var(--border);background:#fff;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-mute);}
+  .statusbtn.ok.active{background:var(--green-light);border-color:var(--green);color:var(--green);}
+  .statusbtn.attn.active{background:var(--red-light);border-color:var(--red);color:var(--red);}
+  .statusbtn.na.active{background:#EEE;border-color:#999;color:#555;}
+  .itemrow.flagged{border-color:var(--red);background:var(--red-light);}
+  .commentbox{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13.5px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:9px;border:none;font-size:15px;font-weight:700;cursor:pointer;}
+  .btn.primary{background:var(--teal);color:#fff;}
+  .btn.primary:hover{background:var(--teal-dark);}
+  .btn.secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal);}
+  .btn.ghost{background:transparent;color:var(--text-mute);border:1px solid var(--border);}
+  .btn.danger{background:var(--red);color:#fff;}
+  .btn.block{width:100%;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .actionbar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:10px;box-shadow:0 -2px 8px rgba(0,0,0,.06);}
+  .radiogrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  @media(max-width:500px){.radiogrid{grid-template-columns:1fr;}}
+  .radiocard{border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;font-weight:700;font-size:13.5px;cursor:pointer;}
+  .radiocard.active{border-color:var(--teal);background:var(--teal-light);color:var(--teal-dark);}
+  .caltable{width:100%;border-collapse:collapse;font-size:13px;}
+  .caltable th,.caltable td{border:1px solid var(--border);padding:6px;text-align:left;}
+  .caltable th{background:var(--gray-bg);font-size:11px;text-transform:uppercase;color:var(--text-mute);}
+  .caltable input{border:none;padding:4px;font-size:13px;width:100%;background:transparent;}
+  .rowremove{color:var(--red);cursor:pointer;font-size:16px;font-weight:800;padding:0 6px;}
+  .safetylist{list-style:none;padding:0;margin:0;}
+  .safetylist li{padding:10px 0 10px 34px;position:relative;border-bottom:1px solid var(--border);font-size:14.5px;line-height:1.4;}
+  .safetylist li:before{content:"✓";position:absolute;left:0;top:10px;color:var(--teal);font-weight:800;}
+  .safetylist li:last-child{border-bottom:none;}
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  .empty{text-align:center;color:var(--text-mute);padding:40px 20px;}
+  .backlink{display:inline-flex;align-items:center;gap:6px;color:var(--teal);font-weight:700;font-size:14px;cursor:pointer;margin-bottom:14px;}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+  .pill.Satisfactory{background:var(--green-light);color:var(--green);}
+  .pill.MinorIssuesNoted{background:var(--amber-light);color:var(--amber);}
+  .pill.CorrectiveActionRequired{background:var(--red-light);color:var(--red);}
+  .pill.ReInspectionRequired{background:var(--red-light);color:var(--red);}
+  .histitem{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+  .histitem:hover{border-color:var(--teal);}
+  .histitem .h-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;}
+  .histitem .h-meta{font-size:12px;color:var(--text-mute);margin-top:4px;}
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .filterbar select,.filterbar input{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;}
+  .loginwrap{max-width:380px;margin:60px auto;text-align:center;}
+  .loginwrap .logo{width:64px;height:64px;border-radius:16px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;margin:0 auto 16px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;}
+  .modal{background:#fff;border-radius:14px;padding:22px;max-width:420px;width:100%;text-align:center;}
+  .spinner{width:34px;height:34px;border:4px solid var(--teal-light);border-top-color:var(--teal);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .detailgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:16px;}
+  .detailgrid div b{display:block;font-size:11px;color:var(--text-mute);text-transform:uppercase;}
+  .print-only{display:none;}
+  @media print{
+    header.appbar,.actionbar,.filterbar,.backlink,.btn{display:none!important;}
+    body{background:#fff;}
+    .print-only{display:block;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const FORMS = [{"id": "design", "template": "zone", "code": "INS-DSN-001", "title": "Design Safety Inspection", "dept": "Design", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Utility Knife Use", "items": [{"label": "Entrance area(s)"}, {"label": "Board storage"}, {"label": "Cutting table(s)"}, {"label": "Office area(s) - IT / Estimating"}, {"label": "Design conference room"}, {"label": "Customer desk"}, {"label": "Sample storage"}, {"label": "Exterior area(s)"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "maintenance", "template": "zone", "code": "INS-MNT-001", "title": "Maintenance Safety Inspection", "dept": "Maintenance", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Machine Guarding, SOP - Lockout Tagout", "items": [{"label": "Workshop"}, {"label": "Inventory area"}, {"label": "Storage area"}, {"label": "Flammable cabinet area"}, {"label": "Racks"}, {"label": "Office area(s)"}, {"label": "Exterior warehouse storage area(s)"}, {"label": "Exterior walls"}, {"label": "Oil supply area(s)"}, {"label": "Yard storage"}, {"label": "Fume vacuum operational"}, {"label": "Safety belts / harnesses"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "office", "template": "zone", "code": "INS-OFC-001", "title": "Office Safety Inspection", "dept": "Office", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "Entrance area(s)"}, {"label": "Reception area"}, {"label": "Aisles & hallways"}, {"label": "Lunch area(s)"}, {"label": "Restrooms"}, {"label": "Storage room(s)"}, {"label": "Stairs"}, {"label": "Office area(s) - IT / Estimating"}, {"label": "Office area(s) - CSR"}, {"label": "Office area(s) - HR"}, {"label": "Office area(s) - Accounting"}, {"label": "Office area(s) - Production"}, {"label": "Office area(s) - Shipping"}, {"label": "File storage & warehouse"}, {"label": "Exterior area(s)"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "receiving", "template": "zone", "code": "INS-RCV-001", "title": "Receiving Safety Inspection", "dept": "Receiving", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Driver Truck Yard Safety", "items": [{"label": "Receiving docks"}, {"label": "Ramp area"}, {"label": "Hazardous waste area"}, {"label": "Warehouse"}, {"label": "Exterior area(s)"}, {"label": "Outside storage"}, {"label": "Trucks & trailers wheel-chocked properly"}, {"label": "Drivers driving at safe speeds"}, {"label": "Trash bins"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Forklift Trucks", "sop": "SOP - Forklift PIT Operation", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}, {"label": "Operator wearing seatbelt"}, {"label": "Loads carried properly (lowered, tilted back)"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "shipping", "template": "zone", "code": "INS-SHP-001", "title": "Shipping Safety Inspection", "dept": "Shipping", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Driver Truck Yard Safety", "items": [{"label": "Shipping docks"}, {"label": "Storage area(s)"}, {"label": "Warehouse"}, {"label": "Pressure vessel(s)"}, {"label": "Exterior area(s)"}, {"label": "Parking area"}, {"label": "Outside storage yard"}, {"label": "QC hold area"}, {"label": "Trucks & trailers wheel-chocked properly"}, {"label": "Drivers driving at safe speeds"}, {"label": "Trash bins"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "corrugated-warehouse", "template": "zone", "code": "INS-COR-001", "title": "Corrugated Warehouse Safety Inspection", "dept": "Warehouse", "icon": "🛡️", "sections": [{"title": "Area Checklist", "sop": "SOP - Machine Guarding, SOP - Baler Compactor Safety, SOP - Hazard Communication", "items": [{"label": "Production machine(s)"}, {"label": "Dock area(s)"}, {"label": "Hogger / Baler(s)"}, {"label": "Lunch area(s)"}, {"label": "Flammable cabinet area"}, {"label": "Ink storage area & ink room"}, {"label": "Racks / die storage"}, {"label": "Restrooms"}, {"label": "Stairs"}, {"label": "Office area(s)"}, {"label": "Die / plate room"}, {"label": "Conveyor system(s)"}, {"label": "Other area(s) - specify in comments"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "yard", "template": "zone", "code": "INS-YRD-001", "title": "Yard Safety Inspection", "dept": "Yard", "icon": "🛡️", "sections": [{"title": "Office Parking Lot Area", "sop": null, "items": [{"label": "Vehicles parked properly"}, {"label": "Fence line intact"}, {"label": "Fire hydrant accessible"}, {"label": "Security gate operating properly"}, {"label": "Signs in place (e.g., no smoking, 5 MPH speed limit)"}]}, {"title": "Corrugated Baler Area", "sop": "SOP - Baler Compactor Safety", "items": [{"label": "Free of debris, scrap, tools, etc."}, {"label": "Roof clear of scrap"}, {"label": "Warning signs in place"}, {"label": "Bales stacked properly"}]}, {"title": "Pallet Yard (Raw Pallets)", "sop": "SOP - Racking Material Storage", "items": [{"label": "Pallets straight and neat"}, {"label": "Stack height does not exceed 22 pallets"}, {"label": "Free of debris (broken boards, nails, etc.)"}, {"label": "Fence line intact"}]}, {"title": "Recycle Trailer Area", "sop": null, "items": [{"label": "Trailer in proper location"}, {"label": "Area around bin free of debris"}, {"label": "Fire hydrant accessible"}]}, {"title": "Trash Bins", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "Bins in proper location"}, {"label": "Area around bin free of debris"}, {"label": "Empty glue totes stacked neatly"}]}, {"title": "Propane Tank Area", "sop": "SOP - Compressed Gas Cylinder Handling", "items": [{"label": "Clean, neat, and safe"}, {"label": "Properly marked"}, {"label": "Safety gloves and glasses/shield in proper location"}, {"label": "Warning signs in place"}, {"label": "Fence line intact"}]}, {"title": "Warehouse Parking Lot", "sop": null, "items": [{"label": "Vehicles parked properly"}, {"label": "Outside break area(s) clean"}, {"label": "Fence line intact"}, {"label": "Fire hydrant accessible"}, {"label": "Security gate operating properly"}, {"label": "Signs in place (e.g., no smoking, 5 MPH speed limit)"}]}, {"title": "Electrical Panels", "sop": "SOP - Electrical Safety", "items": [{"label": "Clear and accessible (minimum 36-inch clearance maintained)"}, {"label": "Properly identified / labeled"}, {"label": "Closed and/or locked"}, {"label": "Clean and neat, no stored material against panel"}, {"label": "Warning / arc-flash signs in place where required"}]}, {"title": "Fire Extinguishers", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked / signed location"}, {"label": "Current inspection tag signed and up to date"}, {"label": "Clean and in good condition"}, {"label": "Mounted in proper designated location"}, {"label": "Pin intact in handle and gauge reads in the green"}]}, {"title": "Safety Equipment / PPE", "sop": "SOP - PPE Eye Ear Foot Protection", "items": [{"label": "Hearing protection available and in use"}, {"label": "Safety glasses / eyewear available and in use"}, {"label": "Dust masks / respirators available where required"}, {"label": "First aid kit stocked and accessible"}, {"label": "First aid station clean and stocked"}, {"label": "Spill kits stocked and accessible"}]}, {"title": "Air / Water Hoses", "sop": null, "items": [{"label": "Hoses in safe working condition, free of cracks or leaks"}, {"label": "OSHA-approved nozzles in use"}, {"label": "Hoses rolled and stored clear of walkways when not in use"}]}, {"title": "Fire / Emergency Exits", "sop": "SOP - Emergency Evacuation", "items": [{"label": "Clear and accessible"}, {"label": "Properly marked"}, {"label": "Exit signs illuminated and tested"}]}, {"title": "Transportation Carts / Pallet Jacks / Forklifts", "sop": "SOP - Powered Pallet Jack Order Picker", "items": [{"label": "Horn sounding properly"}, {"label": "Operated at safe speeds"}, {"label": "Operator wearing safety glasses"}]}, {"title": "Other Hazards", "sop": "SOP - Housekeeping Slip Trip Fall Prevention", "items": [{"label": "No horseplay observed"}, {"label": "General housekeeping standards met"}, {"label": "PPE dispensers full - safety glasses"}, {"label": "PPE dispensers full - ear plugs"}, {"label": "Other violations noted (specify in comments)"}]}]}, {"id": "ladder", "template": "ladder", "code": "INS-LAD-001", "title": "Ladder Inspection", "dept": "All Departments", "icon": "🪜", "headerFields": [{"key": "location", "label": "Location of Ladder", "type": "text"}, {"key": "ladderType", "label": "Type of Ladder", "type": "select", "options": ["Stepladder", "Extension", "Fixed"]}, {"key": "material", "label": "Ladder Material", "type": "select", "options": ["Wood", "Metal", "Fiberglass"]}, {"key": "department", "label": "Department", "type": "text"}], "typeKey": "ladderType", "sectionsByType": {"Stepladder": [{"title": "Stepladder", "sop": "SOP - Ladder Safety", "items": [{"label": "Steps or rungs loose (can be moved by hand)"}, {"label": "Loose nails, screws, bolts, or other hardware"}, {"label": "Cracked, split, or broken uprights, braces, steps, or rungs"}, {"label": "Rungs or steps missing"}, {"label": "Free of grease, oil, or slippery material"}, {"label": "Side rails tight and free of cracks"}, {"label": "Spreaders / movable parts operate freely and lock"}, {"label": "Non-slip feet undamaged and not worn"}, {"label": "Labels / duty rating affixed and legible"}, {"label": "Other"}]}], "Extension": [{"title": "Extension Ladder", "sop": "SOP - Ladder Safety", "items": [{"label": "Extension locks loose, broken, or missing"}, {"label": "Rope frayed or worn"}, {"label": "Steps or rungs loose (can be moved by hand)"}, {"label": "Rungs or steps missing"}, {"label": "Side rails tight and free of cracks"}, {"label": "Non-slip feet undamaged and not worn"}, {"label": "Free of grease, oil, or slippery material"}, {"label": "Labels / duty rating affixed and legible"}, {"label": "Other"}]}], "Fixed": [{"title": "Fixed Ladder", "sop": "SOP - Ladder Safety", "items": [{"label": "Steps or rungs loose (can be moved by hand)"}, {"label": "Loose nails, screws, bolts, or other hardware"}, {"label": "Side rails tight and free of cracks"}, {"label": "Cage (if equipped) secure and free of damage"}, {"label": "Area around base free of tripping hazards"}, {"label": "Free of grease, oil, or slippery material"}, {"label": "Other"}]}]}}, {"id": "daily-forklift", "template": "equipment", "code": "INS-FLT-001", "title": "Daily Forklift Inspection", "dept": "Warehouse / Production", "icon": "🚜", "headerFields": [{"key": "unitNo", "label": "Fork / Unit No.", "type": "text"}, {"key": "shift", "label": "Shift", "type": "select", "options": ["1st", "2nd", "3rd"]}, {"key": "startHours", "label": "Starting Hours", "type": "text"}, {"key": "endHours", "label": "Ending Hours", "type": "text"}], "sections": [{"title": "Forklift Inspection", "sop": "SOP - Forklift PIT Operation", "items": [{"label": "Oil or water leaks"}, {"label": "Overhead guard and backrest - no damage"}, {"label": "Roller tracks / chains lubricated"}, {"label": "Lights working"}, {"label": "Hydraulic system OK"}, {"label": "Tires - no excessive wear, damage, or looseness"}, {"label": "Pedals all operational"}, {"label": "Horn works properly"}, {"label": "Backup alarm and strobe working"}, {"label": "Brakes working properly"}, {"label": "Parking brake OK"}, {"label": "Clamp operation checked (if equipped)"}, {"label": "Forks - not damaged, bent, or worn"}, {"label": "Seat and seatbelt - not damaged, loose, or missing"}, {"label": "Gauges / instrument panel - not damaged or missing"}, {"label": "Operator's manual present and undamaged"}, {"label": "Capacity plate attached and legible"}]}, {"title": "Barcode / Scanner System (\"Top Gun\")", "sop": null, "items": [{"label": "Mounting bracket - not loose or broken"}, {"label": "Scanning gun bracket - not loose or broken"}, {"label": "All mounting hardware secure"}]}, {"title": "Propane Tank", "sop": "SOP - Compressed Gas Cylinder Handling", "items": [{"label": "No cracks, broken welds, rust, corrosion, or other damage"}, {"label": "Valves, nozzles, and hoses secure - no odor or leaks"}]}, {"title": "Fire Extinguisher (Mounted on Unit)", "sop": "SOP - Fire Prevention Extinguisher Use", "items": [{"label": "Locking pin intact and tamper seal unbroken"}, {"label": "Pressure gauge in operable range (green)"}, {"label": "No physical damage or leakage"}]}]}, {"id": "msc-forklift", "template": "machine", "code": "INS-MSC-FLT", "title": "Monthly Machine Safety Checklist - Forklift", "machine": "Forklift", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Always wear a seatbelt when operating the forklift.", "Never exceed the rated load, and ensure it is stable and balanced.", "Do not raise or lower the load while traveling.", "Keep a safe distance from platform and ramp edges.", "Be aware of other vehicles in the work area.", "Do not give rides or use the forks to lift people.", "Watch for pedestrians and observe the speed limit of no more than 5 MPH.", "Use proper footing and the handhold when entering the lift.", "Never go under, or allow others to go under, raised forks or a raised load.", "Use the horn at cross-aisles and obstructed areas."]}, {"id": "msc-147-emba", "template": "machine", "code": "INS-MSC-147", "title": "Monthly Machine Safety Checklist - 147 - Emba", "machine": "147 - Emba", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "The feeding platform must be clean at all times.", "Keep hands clear of the vacuum table rollers on the last sheets.", "Notice the “emergency stop” button on the operator panel.", "Notice that each panel has its own “emergency” button.", "The first and second down section of the machine must always be in a closed position.", "Do not enter the folding section while the machine is running.", "Keep all body parts clear of the counter injector.", "Keep body parts clear of the Mosca strapper.", "Keep hands clear of the final conveyor belt pinch points.", "Do not enter the machine while it is running.", "All doors and panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-144-mckinley", "template": "machine", "code": "INS-MSC-144", "title": "Monthly Machine Safety Checklist - 144 - Mckinley", "machine": "144 - Mckinley", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "Stay clear of the conveyor elevator when it is coming down.", "Keep operator platform clean.", "Keep hands clear of the vacuum table rollers on the last sheets.", "Notice the “emergency stop” button on the operator panel.", "Stay clear of the printer section - enter only when authorized.", "Stay clear of the glue section.", "Do not enter the folding section fence line unless authorized.", "Stay clear of the counter injector and ensure the yellow gate is always in place.", "Notice the “emergency stop” button on the counter injector panel.", "Keep body parts clear of the Mosca strapper.", "Keep hands clear of the final conveyor belt pinch points.", "All doors, gates, and panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-150-152-gluer", "template": "machine", "code": "INS-MSC-150-152", "title": "Monthly Machine Safety Checklist - 150/151/152 - Gluer", "machine": "150/151/152 - Gluer", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not stand or walk on the roller platform.", "Use the hand rail to climb up onto the operator platform.", "Keep operator platform clean.", "Keep hands away from the feeding section and rollers.", "Notice the “emergency stop” button on the operator panel.", "Be aware of all pinch points.", "Keep all body parts clear of the counter injector.", "Be aware that glue parts (head, hoses, fittings, and glue unit) may be hot.", "Machine must be off before removing any jams."]}, {"id": "msc-138-large-matsu", "template": "machine", "code": "INS-MSC-138", "title": "Monthly Machine Safety Checklist - 138 - Large Matsu", "machine": "138 - Large Matsu", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "Use the hand rail to climb up onto the operator platform.", "Keep operator platform clean.", "Keep hands away from the feeding section.", "Only machine operators and mechanics are allowed to open or enter the plexiglass safety doors and windows.", "Notice the “emergency stop” button on the operator panel.", "Be aware of all pinch points when opening the die cutting door.", "Keep all body parts clear of the counter injector.", "Do not enter the machine while it is running.", "All doors, windows, and panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-110-111-slitter", "template": "machine", "code": "INS-MSC-110-111", "title": "Monthly Machine Safety Checklist - 110/111 - Slitter", "machine": "110/111 - Slitter", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Never touch the yellow safety gate while the machine is on.", "Only operators are authorized to contact the cylinder rollers, knives, and cutters.", "Follow the prescribed lifting technique when stacking paper.", "Maintain a minimum of 2 feet of distance from the metal feed rollers when the machine is running."]}, {"id": "msc-137-small-matsu", "template": "machine", "code": "INS-MSC-137", "title": "Monthly Machine Safety Checklist - 137 - Small Matsu", "machine": "137 - Small Matsu", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "Use the hand rail to climb up onto the operator platform.", "Keep operator platform clean.", "Keep hands away from the feeding section.", "Notice the “emergency stop” button on the operator panel.", "Keep all body parts clear of the counter injector.", "Do not walk on the roller platform at the stripping table.", "Do not guide or push down/in on the cardboard in the shredder conveyor.", "All panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-strapper", "template": "machine", "code": "INS-MSC-STR", "title": "Monthly Machine Safety Checklist - Strapper", "machine": "Strapper", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not stand or walk on the conveyors.", "Keep the area clean and dunnage organized at all times.", "Keep hands away from the strapping section and rollers when the machine is on.", "Notice the “emergency stop” button on the operator panel.", "Be aware of all pinch points.", "Keep all body parts clear of the squaring section and turn table.", "Machine must be off before removing any jams."]}, {"id": "msc-126-86-rotary", "template": "machine", "code": "INS-MSC-126", "title": "Monthly Machine Safety Checklist - 126 - 86” Rotary", "machine": "126 - 86” Rotary", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "Stay clear of the conveyor elevator when it is coming down.", "Always install the guardrail at the elevator.", "Always use the metal deck to stand on the rollers.", "Do not place hands in the feed rollers.", "Never place hands beyond the print section and feed table yellow screen.", "Notice the “emergency stop” button on the operator panel.", "Always use the safety bar to gain access to the print section.", "Notice that each panel has its own “emergency” button.", "Always use gloves when handling slots.", "Do not enter the machine while it is running.", "Keep hands clear of the final conveyor belt pinch points.", "Always use the metal deck to walk on the stacker rollers.", "All panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-132-shanghai", "template": "machine", "code": "INS-MSC-132", "title": "Monthly Machine Safety Checklist - 132 - Shanghai", "machine": "132 - Shanghai", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not walk on the roller platform.", "Stay clear of the conveyor elevator when it is coming down.", "Keep operator platform clean.", "Keep hands clear of the vacuum table rollers on the last sheets.", "Notice the “emergency stop” button on the operator panel.", "Notice that each panel has its own “emergency” button.", "Notice that each panel has its own lockout switch.", "Do not enter the die cut section while the machine is running.", "Keep hands clear of the final conveyor belt pinch points.", "Do not walk on the exit conveyor rollers.", "All panels must be closed at all times.", "Machine must be off before removing any jams."]}, {"id": "msc-155-stitcher", "template": "machine", "code": "INS-MSC-155", "title": "Monthly Machine Safety Checklist - 155 - Stitcher", "machine": "155 - Stitcher", "dept": "Production", "icon": "⚙️", "steps": ["Always wear protective gear which includes eyes, ears, and foot protection.", "Do not stand or walk on the roller platform.", "Use the hand rail to climb up onto the operator platform.", "Keep operator platform clean.", "Keep hands away from the feeding section and rollers.", "Notice the “emergency stop” button on the operator panel.", "Be aware of all pinch points.", "Keep all body parts clear of the counter injector.", "Machine must be off before removing any jams."]}];
+
+const STATUS = { OK: 'OK', ATTN: 'ATTN', NA: 'NA' };
+const RESULT_OPTIONS = [
+  { key: 'Satisfactory', label: 'Satisfactory' },
+  { key: 'MinorIssuesNoted', label: 'Minor Issues Noted' },
+  { key: 'CorrectiveActionRequired', label: 'Corrective Action Required' },
+  { key: 'ReInspectionRequired', label: 'Re-Inspection Required' }
+];
+
+const API_URL = '/api/submissions';
+let apiReady = true; // API is same-origin once deployed on Netlify; no config needed
+
+const state = {
+  screen: 'home',        // home | form | history | detail
+  employeeName: localStorage.getItem('gwpg_st_name') || '',
+  activeFormId: null,
+  formData: {},           // in-progress answers for active form
+  search: '',
+  historyItems: [],
+  historyLoaded: false,
+  historyFilterForm: 'all',
+  historySearch: '',
+  detailItem: null,
+  saving: false
+};
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function todayStr(){ const d = new Date(); return d.toISOString().slice(0,10); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function getForm(id){ return FORMS.find(f => f.id === id); }
+
+function badgeFor(f){
+  if (f.template === 'zone') return '<span class="badge zone">Area Inspection</span>';
+  if (f.template === 'ladder' || f.template === 'equipment') return '<span class="badge equip">Equipment Check</span>';
+  if (f.template === 'machine') return '<span class="badge machine">Monthly Acknowledgment</span>';
+  return '';
+}
+function iconFor(f){ return f.icon || '📋'; }
+
+// ---------- fresh answer scaffolding ----------
+function blankZoneOrEquipData(f, sectionsOverride){
+  const sections = sectionsOverride || f.sections;
+  const items = {};
+  sections.forEach(sec => {
+    sec.items.forEach(it => {
+      items[sec.title + '||' + it.label] = { status: null, comment: '' };
+    });
+  });
+  return {
+    inspectedBy: state.employeeName,
+    dateInspected: todayStr(),
+    copyDistributedTo: '',
+    header: {},
+    items: items,
+    correctiveActions: [],
+    overallResult: null
+  };
+}
+function blankMachineData(f){
+  return {
+    employeeName: state.employeeName,
+    shift: '',
+    department: f.dept,
+    machine: f.machine,
+    employeeSignature: state.employeeName,
+    supervisorSignature: '',
+    ackDate: todayStr()
+  };
+}
+
+function startForm(id){
+  const f = getForm(id);
+  if (!f) return;
+  state.activeFormId = id;
+  if (f.template === 'zone' || f.template === 'equipment') {
+    state.formData = blankZoneOrEquipData(f);
+  } else if (f.template === 'ladder') {
+    state.formData = blankZoneOrEquipData(f, []);
+    state.formData.header[f.typeKey] = '';
+  } else if (f.template === 'machine') {
+    state.formData = blankMachineData(f);
+  }
+  state.screen = 'form';
+  render();
+  window.scrollTo(0,0);
+}
+
+// ---------- render engine ----------
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = headerHtml() + '<main>' + screenHtml() + '</main>';
+  wireEvents();
+}
+
+function headerHtml(){
+  const who = state.employeeName ? esc(state.employeeName) : '';
+  return `
+  <header class="appbar">
+    <div class="brand" onclick="goHome()">
+      <div class="logo">GW</div>
+      <div>
+        <div class="title">SafetyTrack</div>
+        <div class="subtitle">GoldenWest Packaging Group</div>
+      </div>
+    </div>
+    <div class="navbtns">
+      ${who ? `<span class="whoami">👤 ${who}</span>` : ''}
+      <button onclick="goHome()">Checklists</button>
+      <button onclick="goHistory()">History</button>
+      ${who ? `<button onclick="changeName()">Switch</button>` : ''}
+    </div>
+  </header>`;
+}
+
+function screenHtml(){
+  if (!state.employeeName) return loginHtml();
+  if (state.screen === 'home') return homeHtml();
+  if (state.screen === 'form') return formHtml();
+  if (state.screen === 'history') return historyHtml();
+  if (state.screen === 'detail') return detailHtml();
+  return homeHtml();
+}
+
+function loginHtml(){
+  return `
+  <div class="loginwrap">
+    <div class="logo">GW</div>
+    <h2 style="margin:0 0 6px;">Welcome to SafetyTrack</h2>
+    <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">Enter your name to start filling out safety checklists.</p>
+    <input type="text" id="nameInput" placeholder="Your full name" style="text-align:center;margin-bottom:12px;" />
+    <button class="btn primary block" onclick="submitName()">Continue</button>
+
+  </div>`;
+}
+
+function goHome(){ if(!state.employeeName) return; state.screen='home'; render(); }
+function goHistory(){ if(!state.employeeName) return; state.screen='history'; loadHistoryIfNeeded(); render(); }
+function changeName(){
+  localStorage.removeItem('gwpg_st_name');
+  state.employeeName = '';
+  state.screen = 'home';
+  render();
+}
+function submitName(){
+  const v = document.getElementById('nameInput').value.trim();
+  if (!v) { showToast('Please enter your name'); return; }
+  state.employeeName = v;
+  localStorage.setItem('gwpg_st_name', v);
+  render();
+}
+
+function homeHtml(){
+  const q = state.search.toLowerCase();
+  const list = FORMS.filter(f => !q || f.title.toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
+  return `
+  <div class="hero">
+    <h1>Safety Checklists</h1>
+    <p>Select a checklist below to complete it. Your submission is saved automatically.</p>
+  </div>
+  <input class="searchbox" id="searchInput" placeholder="Search checklists..." value="${esc(state.search)}" />
+  <div class="formlist">
+    ${list.map(f => `
+      <div class="formitem" onclick="startForm('${f.id}')">
+        <div class="fi-left">
+          <div class="fi-icon">${iconFor(f)}</div>
+          <div>
+            <div class="fi-title">${esc(f.title)}</div>
+            <div class="fi-meta">${badgeFor(f)} &nbsp;${esc(f.code)}</div>
+          </div>
+        </div>
+        <div class="fi-arrow">›</div>
+      </div>`).join('')}
+    ${list.length === 0 ? `<div class="empty">No checklists match "${esc(state.search)}"</div>` : ''}
+  </div>`;
+}
+
+// ---------- FORM screen ----------
+function formHtml(){
+  const f = getForm(state.activeFormId);
+  if (!f) return '<div class="empty">Form not found.</div>';
+  let body = '';
+  if (f.template === 'zone' || f.template === 'equipment') body = zoneEquipFormHtml(f);
+  else if (f.template === 'ladder') body = ladderFormHtml(f);
+  else if (f.template === 'machine') body = machineFormHtml(f);
+  return `
+  <div class="backlink" onclick="cancelForm()">‹ Back to checklists</div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <h2 style="margin:0 0 4px;">${esc(f.title)}</h2>
+        <div style="font-size:12.5px;color:var(--text-mute);">${esc(f.code)} &middot; ${esc(f.dept||'')}</div>
+      </div>
+      ${badgeFor(f)}
+    </div>
+  </div>
+  ${body}
+  <div class="actionbar">
+    <button class="btn ghost" onclick="cancelForm()">Cancel</button>
+    <button class="btn primary block" id="submitBtn" onclick="submitForm()">Submit Checklist</button>
+  </div>`;
+}
+
+function statusButtonsHtml(sectionTitle, itemLabel, current){
+  const key = sectionTitle + '||' + itemLabel;
+  return `
+    <div class="statusbtns" data-itemkey="${esc(key)}">
+      <div class="statusbtn ok ${current==='OK'?'active':''}" onclick="setItemStatus('${escJs(key)}','OK')">✓ OK</div>
+      <div class="statusbtn attn ${current==='ATTN'?'active':''}" onclick="setItemStatus('${escJs(key)}','ATTN')">⚠ Needs Attention</div>
+      <div class="statusbtn na ${current==='NA'?'active':''}" onclick="setItemStatus('${escJs(key)}','NA')">— N/A</div>
+    </div>`;
+}
+function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function itemRowHtml(sec, it){
+  const key = sec.title + '||' + it.label;
+  const rec = state.formData.items[key] || {status:null, comment:''};
+  const flagged = rec.status === 'ATTN';
+  return `
+  <div class="itemrow ${flagged?'flagged':''}" data-key="${esc(key)}">
+    <div class="itemlabel">${esc(it.label)}</div>
+    ${statusButtonsHtml(sec.title, it.label, rec.status)}
+    ${flagged ? `<textarea class="commentbox" placeholder="Describe the issue..." oninput="setItemComment('${escJs(key)}', this.value)">${esc(rec.comment)}</textarea>` : ''}
+  </div>`;
+}
+
+function sectionsHtml(sections){
+  return sections.map(sec => `
+    <div class="sectiontitle">${esc(sec.title)}</div>
+    ${sec.sop ? `<div style="font-size:11.5px;color:var(--text-mute);margin:-4px 0 10px;font-style:italic;">Ref: ${esc(sec.sop)}</div>` : ''}
+    ${sec.items.map(it => itemRowHtml(sec, it)).join('')}
+  `).join('');
+}
+
+function correctiveLogHtml(){
+  const rows = state.formData.correctiveActions;
+  return `
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Corrective Action Log</div>
+    <p style="font-size:12.5px;color:var(--text-mute);margin-top:-4px;">Log any item marked "Needs Attention" above.</p>
+    <table class="caltable" id="calTable">
+      <tr><th>Item / Area</th><th>Corrective Action Needed</th><th>Assigned To</th><th>Due Date</th><th></th></tr>
+      ${rows.map((r,i)=>`
+        <tr data-idx="${i}">
+          <td><input value="${esc(r.item)}" oninput="setCalField(${i},'item',this.value)"></td>
+          <td><input value="${esc(r.action)}" oninput="setCalField(${i},'action',this.value)"></td>
+          <td><input value="${esc(r.assignedTo)}" oninput="setCalField(${i},'assignedTo',this.value)"></td>
+          <td><input type="date" value="${esc(r.dueDate)}" oninput="setCalField(${i},'dueDate',this.value)"></td>
+          <td><span class="rowremove" onclick="removeCalRow(${i})">&times;</span></td>
+        </tr>`).join('')}
+    </table>
+    <div style="margin-top:10px;"><button class="btn secondary" onclick="addCalRow()">+ Add Row</button></div>
+  </div>`;
+}
+
+function overallResultHtml(){
+  const cur = state.formData.overallResult;
+  return `
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Overall Result</div>
+    <div class="radiogrid">
+      ${RESULT_OPTIONS.map(r => `
+        <div class="radiocard ${cur===r.key?'active':''}" onclick="setOverallResult('${r.key}')">${esc(r.label)}</div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function zoneEquipFormHtml(f){
+  let headerHtmlPart = `
+  <div class="card">
+    <div class="fieldrow">
+      <div><label>Inspected By</label><input type="text" value="${esc(state.formData.inspectedBy)}" oninput="setTopField('inspectedBy', this.value)"></div>
+      <div><label>Date Inspected</label><input type="date" value="${esc(state.formData.dateInspected)}" oninput="setTopField('dateInspected', this.value)"></div>
+    </div>`;
+  if (f.headerFields) {
+    headerHtmlPart += `<div class="fieldrow">` + f.headerFields.map(hf => headerFieldHtml(hf)).join('') + `</div>`;
+  } else {
+    headerHtmlPart += `
+    <div class="fieldrow">
+      <div><label>Copy Distributed To</label><input type="text" value="${esc(state.formData.copyDistributedTo)}" oninput="setTopField('copyDistributedTo', this.value)"></div>
+    </div>`;
+  }
+  headerHtmlPart += `</div>`;
+  return headerHtmlPart + sectionsHtml(f.sections) + correctiveLogHtml() + overallResultHtml();
+}
+
+function headerFieldHtml(hf){
+  const val = state.formData.header[hf.key] || '';
+  if (hf.type === 'select') {
+    return `<div><label>${esc(hf.label)}</label><select onchange="setHeaderField('${hf.key}', this.value)">
+      <option value="">Select...</option>
+      ${hf.options.map(o=>`<option value="${esc(o)}" ${val===o?'selected':''}>${esc(o)}</option>`).join('')}
+    </select></div>`;
+  }
+  return `<div><label>${esc(hf.label)}</label><input type="text" value="${esc(val)}" oninput="setHeaderField('${hf.key}', this.value)"></div>`;
+}
+
+function ladderFormHtml(f){
+  const chosenType = state.formData.header[f.typeKey];
+  const sections = chosenType && f.sectionsByType[chosenType] ? f.sectionsByType[chosenType] : [];
+  // ensure item entries exist for chosen section
+  sections.forEach(sec => sec.items.forEach(it => {
+    const key = sec.title + '||' + it.label;
+    if (!state.formData.items[key]) state.formData.items[key] = {status:null, comment:''};
+  }));
+  return `
+  <div class="card">
+    <div class="fieldrow">
+      <div><label>Inspected By</label><input type="text" value="${esc(state.formData.inspectedBy)}" oninput="setTopField('inspectedBy', this.value)"></div>
+      <div><label>Date Inspected</label><input type="date" value="${esc(state.formData.dateInspected)}" oninput="setTopField('dateInspected', this.value)"></div>
+    </div>
+    <div class="fieldrow">
+      ${f.headerFields.map(hf=>headerFieldHtml(hf)).join('')}
+    </div>
+  </div>
+  ${sections.length ? sectionsHtml(sections) : `<div class="empty">Select a ladder type above to load the inspection items.</div>`}
+  ${sections.length ? correctiveLogHtml() + overallResultHtml() : ''}
+  `;
+}
+
+function machineFormHtml(f){
+  const d = state.formData;
+  return `
+  <div class="card">
+    <div class="fieldrow">
+      <div><label>Employee Name</label><input type="text" value="${esc(d.employeeName)}" oninput="setMachineField('employeeName', this.value)"></div>
+      <div><label>Shift</label><select onchange="setMachineField('shift', this.value)">
+        <option value="">Select...</option>
+        <option value="1st" ${d.shift==='1st'?'selected':''}>1st</option>
+        <option value="2nd" ${d.shift==='2nd'?'selected':''}>2nd</option>
+        <option value="3rd" ${d.shift==='3rd'?'selected':''}>3rd</option>
+      </select></div>
+    </div>
+    <div class="fieldrow">
+      <div><label>Department</label><input type="text" value="${esc(d.department)}" disabled></div>
+      <div><label>Machine</label><input type="text" value="${esc(d.machine)}" disabled></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Safety Description</div>
+    <p style="font-size:13px;color:var(--text-mute);">Review each safety point below, then sign to acknowledge you understand and agree to follow them.</p>
+    <ul class="safetylist">${f.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
+  </div>
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Acknowledgment</div>
+    <p style="font-size:13px;color:var(--text-mute);">The ${f.steps.length} safety steps above have been reviewed with me.</p>
+    <div class="fieldrow">
+      <div><label>Employee Signature (type full name)</label><input type="text" value="${esc(d.employeeSignature)}" oninput="setMachineField('employeeSignature', this.value)"></div>
+      <div><label>Supervisor Signature (type full name)</label><input type="text" value="${esc(d.supervisorSignature)}" oninput="setMachineField('supervisorSignature', this.value)" placeholder="Optional"></div>
+    </div>
+    <div class="fieldrow">
+      <div><label>Date</label><input type="date" value="${esc(d.ackDate)}" oninput="setMachineField('ackDate', this.value)"></div>
+    </div>
+  </div>`;
+}
+
+// ---------- field setters ----------
+function setTopField(key, val){ state.formData[key] = val; }
+function setHeaderField(key, val){
+  state.formData.header[key] = val;
+  if (state.activeFormId === 'ladder') render(); // re-render to load section by type
+}
+function setMachineField(key, val){ state.formData[key] = val; }
+function setItemStatus(key, status){
+  const cur = state.formData.items[key] || {status:null, comment:''};
+  cur.status = (cur.status === status) ? null : status;
+  state.formData.items[key] = cur;
+  render();
+}
+function setItemComment(key, val){
+  state.formData.items[key].comment = val;
+}
+function addCalRow(){
+  state.formData.correctiveActions.push({item:'',action:'',assignedTo:'',dueDate:''});
+  render();
+}
+function removeCalRow(i){
+  state.formData.correctiveActions.splice(i,1);
+  render();
+}
+function setCalField(i, field, val){ state.formData.correctiveActions[i][field] = val; }
+function setOverallResult(key){ state.formData.overallResult = key; render(); }
+
+function cancelForm(){
+  if (!confirm('Discard this checklist? Unsaved answers will be lost.')) return;
+  state.activeFormId = null;
+  state.screen = 'home';
+  render();
+}
+
+// ---------- submit ----------
+async function submitForm(){
+  const f = getForm(state.activeFormId);
+  if (!f) return;
+  const d = state.formData;
+
+  if (f.template === 'machine') {
+    if (!d.employeeSignature) { showToast('Please sign to acknowledge'); return; }
+  } else {
+    if (!d.overallResult) { showToast('Please select an overall result'); return; }
+  }
+
+  const payload = {
+    formId: f.id,
+    formTitle: f.title,
+    formCode: f.code,
+    template: f.template,
+    department: f.dept || d.department || '',
+    employeeName: state.employeeName,
+    submittedAtLocal: new Date().toISOString(),
+    data: d
+  };
+
+  state.saving = true;
+  showToast('Saving...');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Save failed: ' + res.status);
+    showToast('Checklist submitted ✓');
+    state.activeFormId = null;
+    state.screen = 'home';
+    state.historyLoaded = false;
+    render();
+  } catch (e) {
+    console.error(e);
+    showToast('Save failed — check connection and try again');
+  }
+  state.saving = false;
+}
+
+// ---------- history ----------
+async function loadHistoryIfNeeded(){
+  if (state.historyLoaded) return;
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('Load failed: ' + res.status);
+    state.historyItems = await res.json();
+    state.historyLoaded = true;
+  } catch (e) {
+    console.error(e);
+    showToast('Could not load history');
+  }
+  render();
+}
+
+function historyHtml(){
+  const formOptions = FORMS.map(f => `<option value="${f.id}">${esc(f.title)}</option>`).join('');
+  let items = state.historyItems;
+  if (state.historyFilterForm !== 'all') items = items.filter(i => i.formId === state.historyFilterForm);
+  if (state.historySearch) {
+    const q = state.historySearch.toLowerCase();
+    items = items.filter(i => (i.employeeName||'').toLowerCase().includes(q));
+  }
+  return `
+  <div class="filterbar">
+    <select id="histFormFilter" onchange="setHistFilter(this.value)">
+      <option value="all">All checklists</option>
+      ${formOptions}
+    </select>
+    <input type="text" id="histSearch" placeholder="Search by employee..." value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
+    <button class="btn ghost" onclick="exportHistoryCsv()">Export CSV</button>
+  </div>
+  ${items.length === 0 ? `<div class="empty">No submissions found.</div>` : items.map(i => histItemHtml(i)).join('')}
+  `;
+}
+function setHistFilter(v){ state.historyFilterForm = v; render(); }
+function setHistSearch(v){ state.historySearch = v; render(); }
+
+function histItemHtml(i){
+  const result = i.data && i.data.overallResult;
+  const dt = i.submittedAtLocal ? new Date(i.submittedAtLocal).toLocaleString() : '';
+  return `
+  <div class="histitem" onclick="openDetail('${i.id}')">
+    <div class="h-top">
+      <span>${esc(i.formTitle)}</span>
+      ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">Acknowledged</span>' : '')}
+    </div>
+    <div class="h-meta">${esc(i.employeeName)} &middot; ${esc(dt)}</div>
+  </div>`;
+}
+
+function openDetail(id){
+  state.detailItem = state.historyItems.find(i => i.id === id);
+  state.screen = 'detail';
+  render();
+  window.scrollTo(0,0);
+}
+
+function detailHtml(){
+  const i = state.detailItem;
+  if (!i) return '<div class="empty">Not found.</div>';
+  const f = getForm(i.formId);
+  let body = '';
+  if (i.template === 'machine') {
+    body = `
+    <div class="detailgrid">
+      <div><b>Employee</b>${esc(i.data.employeeName)}</div>
+      <div><b>Shift</b>${esc(i.data.shift)}</div>
+      <div><b>Machine</b>${esc(i.data.machine)}</div>
+      <div><b>Date</b>${esc(i.data.ackDate)}</div>
+      <div><b>Employee Signature</b>${esc(i.data.employeeSignature)}</div>
+      <div><b>Supervisor Signature</b>${esc(i.data.supervisorSignature||'—')}</div>
+    </div>
+    <ul class="safetylist">${(f?f.steps:[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`;
+  } else {
+    const items = i.data.items || {};
+    const attnKeys = Object.keys(items).filter(k => items[k].status === 'ATTN');
+    body = `
+    <div class="detailgrid">
+      <div><b>Inspected By</b>${esc(i.data.inspectedBy)}</div>
+      <div><b>Date Inspected</b>${esc(i.data.dateInspected)}</div>
+      ${Object.entries(i.data.header||{}).map(([k,v])=>`<div><b>${esc(k)}</b>${esc(v)}</div>`).join('')}
+      <div><b>Overall Result</b>${esc(RESULT_OPTIONS.find(r=>r.key===i.data.overallResult)?.label || '')}</div>
+    </div>
+    ${attnKeys.length ? `
+      <div class="sectiontitle">Items Needing Attention</div>
+      <ul class="safetylist">
+        ${attnKeys.map(k => `<li><b>${esc(k.split('||')[1])}</b>${items[k].comment ? ' — ' + esc(items[k].comment) : ''}</li>`).join('')}
+      </ul>` : `<p style="color:var(--text-mute);">No items were flagged as Needs Attention.</p>`}
+    ${(i.data.correctiveActions||[]).length ? `
+      <div class="sectiontitle">Corrective Action Log</div>
+      <table class="caltable">
+        <tr><th>Item</th><th>Action</th><th>Assigned To</th><th>Due</th></tr>
+        ${i.data.correctiveActions.map(r=>`<tr><td>${esc(r.item)}</td><td>${esc(r.action)}</td><td>${esc(r.assignedTo)}</td><td>${esc(r.dueDate)}</td></tr>`).join('')}
+      </table>` : ''}`;
+  }
+  return `
+  <div class="backlink" onclick="state.screen='history';render();">‹ Back to history</div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <h2 style="margin:0 0 4px;">${esc(i.formTitle)}</h2>
+        <div style="font-size:12.5px;color:var(--text-mute);">${esc(i.formCode)} &middot; Submitted by ${esc(i.employeeName)}</div>
+      </div>
+      <button class="btn ghost" onclick="window.print()">Print</button>
+    </div>
+  </div>
+  <div class="card">${body}</div>`;
+}
+
+function exportHistoryCsv(){
+  const rows = [['Form','Code','Employee','Submitted','Overall Result']];
+  state.historyItems.forEach(i => {
+    rows.push([
+      i.formTitle, i.formCode, i.employeeName,
+      i.submittedAtLocal ? new Date(i.submittedAtLocal).toLocaleString() : '',
+      i.data && i.data.overallResult ? (RESULT_OPTIONS.find(r=>r.key===i.data.overallResult)?.label||'') : (i.template==='machine'?'Acknowledged':'')
+    ]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'safetytrack-history-' + todayStr() + '.csv';
+  a.click();
+}
+
+function wireEvents(){
+  const s = document.getElementById('searchInput');
+  if (s) s.oninput = (e) => { state.search = e.target.value; render(); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
+}
+
+render();
+</script>
+
+
+</body>
+</html>

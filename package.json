@@ -1,0 +1,12 @@
+{
+  "name": "safetytrack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GWPG SafetyTrack - digital safety inspection checklists",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.8.2"
+  }
+}
