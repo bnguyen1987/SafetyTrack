@@ -50,6 +50,15 @@ To add or edit a checklist, edit the `FORMS` array — the three render
 templates (`zone`, `equipment`/`ladder`, `machine`) are generic and pick up
 data-driven changes automatically.
 
+## Notes & photos
+
+Every checklist item (not just ones marked "Needs Attention") has a "🗨 Add
+note" toggle and a "📷 Add photo" button — up to 3 photos per item. Photos
+are compressed client-side (max 1280px wide, JPEG ~72% quality) before
+upload, then stored via `netlify/functions/photos.mts` in a separate Netlify
+Blobs store (`safety-inspection-photos`), keyed by a generated id. The
+History detail view fetches them back at `/api/photos/{key}`.
+
 ## Known v1 limitations
 
 - No login/roles — anyone can submit under any typed name.

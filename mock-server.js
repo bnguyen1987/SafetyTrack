@@ -3,8 +3,33 @@ const fs = require('fs');
 const path = require('path');
 
 let submissions = [];
+let photos = {}; // key -> { buffer, contentType }
 
 const server = http.createServer((req, res) => {
+  if (req.url.startsWith('/api/photos')) {
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        const { imageBase64 } = JSON.parse(body);
+        const match = /^data:([^;]+);base64,(.+)$/.exec(imageBase64 || '');
+        if (!match) { res.writeHead(400); res.end('bad image'); return; }
+        const key = 'p-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+        photos[key] = { buffer: Buffer.from(match[2], 'base64'), contentType: match[1] };
+        res.writeHead(201, {'content-type':'application/json'});
+        res.end(JSON.stringify({ key }));
+      });
+      return;
+    }
+    if (req.method === 'GET') {
+      const key = req.url.split('/api/photos/')[1];
+      const p = photos[key];
+      if (!p) { res.writeHead(404); res.end('not found'); return; }
+      res.writeHead(200, {'content-type': p.contentType, 'cache-control':'public, max-age=31536000, immutable'});
+      res.end(p.buffer);
+      return;
+    }
+  }
   if (req.url.startsWith('/api/submissions')) {
     if (req.method === 'POST') {
       let body = '';

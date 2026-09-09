@@ -64,7 +64,18 @@
   .statusbtn.attn.active{background:var(--red-light);border-color:var(--red);color:var(--red);}
   .statusbtn.na.active{background:#EEE;border-color:#999;color:#555;}
   .itemrow.flagged{border-color:var(--red);background:var(--red-light);}
-  .commentbox{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13.5px;}
+  .commentbox{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13.5px;margin-top:2px;}
+  .itemtools{display:flex;gap:8px;margin-bottom:8px;}
+  .toolbtn{background:transparent;border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--text-mute);cursor:pointer;}
+  .toolbtn:hover{border-color:var(--teal);color:var(--teal-dark);}
+  .photostrip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .phothumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#eee;}
+  .phothumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .phothumb.uploading img{opacity:.5;}
+  .phothumb.photoerror{border-color:var(--red);}
+  .phostatus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9.5px;font-weight:700;color:#fff;background:rgba(0,0,0,.45);padding:2px;}
+  .phostatus.err{background:rgba(192,57,43,.75);cursor:pointer;}
+  .photoremove{position:absolute;top:1px;right:3px;color:#fff;background:rgba(0,0,0,.5);border-radius:50%;width:16px;height:16px;font-size:12px;line-height:16px;text-align:center;cursor:pointer;font-weight:800;}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:9px;border:none;font-size:15px;font-weight:700;cursor:pointer;}
   .btn.primary{background:var(--teal);color:#fff;}
   .btn.primary:hover{background:var(--teal-dark);}
@@ -148,7 +159,8 @@ const state = {
   historyFilterForm: 'all',
   historySearch: '',
   detailItem: null,
-  saving: false
+  saving: false,
+  uiOpen: {}      // transient: which items have their note field manually expanded
 };
 
 function esc(s) {
@@ -178,7 +190,7 @@ function blankZoneOrEquipData(f, sectionsOverride){
   const items = {};
   sections.forEach(sec => {
     sec.items.forEach(it => {
-      items[sec.title + '||' + it.label] = { status: null, comment: '' };
+      items[sec.title + '||' + it.label] = { status: null, comment: '', photos: [] };
     });
   });
   return {
@@ -346,15 +358,37 @@ function statusButtonsHtml(sectionTitle, itemLabel, current){
 }
 function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
+function idFor(key){ return 'it_' + key.replace(/[^a-zA-Z0-9]+/g, '_'); }
+
 function itemRowHtml(sec, it){
   const key = sec.title + '||' + it.label;
-  const rec = state.formData.items[key] || {status:null, comment:''};
+  const rec = state.formData.items[key] || {status:null, comment:'', photos:[]};
+  if (!rec.photos) rec.photos = [];
   const flagged = rec.status === 'ATTN';
+  const noteOpen = flagged || !!state.uiOpen[key] || !!rec.comment;
+  const safeId = idFor(key);
   return `
   <div class="itemrow ${flagged?'flagged':''}" data-key="${esc(key)}">
     <div class="itemlabel">${esc(it.label)}</div>
     ${statusButtonsHtml(sec.title, it.label, rec.status)}
-    ${flagged ? `<textarea class="commentbox" placeholder="Describe the issue..." oninput="setItemComment('${escJs(key)}', this.value)">${esc(rec.comment)}</textarea>` : ''}
+    <div class="itemtools">
+      <button type="button" class="toolbtn" onclick="toggleNote('${escJs(key)}')">🗨 ${noteOpen ? 'Note' : 'Add note'}</button>
+      <button type="button" class="toolbtn" onclick="document.getElementById('${safeId}').click()">📷 Add photo${rec.photos.length ? ' (' + rec.photos.length + ')' : ''}</button>
+      <input type="file" accept="image/*" capture="environment" id="${safeId}" style="display:none" onchange="onPhotoInputChange('${escJs(key)}', this)">
+    </div>
+    ${noteOpen ? `<textarea class="commentbox" placeholder="${flagged ? 'Describe the issue...' : 'Add a note (optional)...'}" oninput="setItemComment('${escJs(key)}', this.value)">${esc(rec.comment)}</textarea>` : ''}
+    ${rec.photos.length ? `<div class="photostrip">${rec.photos.map((p,i)=>photoThumbHtml(key,p,i)).join('')}</div>` : ''}
+  </div>`;
+}
+
+function photoThumbHtml(key, p, i){
+  const src = p.dataUrl || (p.key ? ('/api/photos/' + p.key) : '');
+  return `
+  <div class="phothumb ${p.uploading?'uploading':''} ${p.error?'photoerror':''}">
+    <img src="${esc(src)}">
+    ${p.uploading ? `<div class="phostatus">Uploading…</div>` : ''}
+    ${p.error ? `<div class="phostatus err">Failed — tap to retry</div>` : ''}
+    <span class="photoremove" onclick="removePhoto('${escJs(key)}', ${i})">&times;</span>
   </div>`;
 }
 
@@ -435,7 +469,7 @@ function ladderFormHtml(f){
   // ensure item entries exist for chosen section
   sections.forEach(sec => sec.items.forEach(it => {
     const key = sec.title + '||' + it.label;
-    if (!state.formData.items[key]) state.formData.items[key] = {status:null, comment:''};
+    if (!state.formData.items[key]) state.formData.items[key] = {status:null, comment:'', photos:[]};
   }));
   return `
   <div class="card">
@@ -496,13 +530,79 @@ function setHeaderField(key, val){
 }
 function setMachineField(key, val){ state.formData[key] = val; }
 function setItemStatus(key, status){
-  const cur = state.formData.items[key] || {status:null, comment:''};
+  const cur = state.formData.items[key] || {status:null, comment:'', photos:[]};
   cur.status = (cur.status === status) ? null : status;
   state.formData.items[key] = cur;
   render();
 }
 function setItemComment(key, val){
   state.formData.items[key].comment = val;
+}
+function toggleNote(key){
+  state.uiOpen[key] = !state.uiOpen[key];
+  render();
+}
+
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1280;
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onPhotoInputChange(key, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  inputEl.value = ''; // allow re-selecting the same file later
+  if (!file) return;
+  const rec = state.formData.items[key];
+  if (!rec.photos) rec.photos = [];
+  if (rec.photos.length >= 3) { showToast('Up to 3 photos per item'); return; }
+  let dataUrl;
+  try {
+    dataUrl = await compressImage(file);
+  } catch (e) {
+    showToast('Could not read that photo'); return;
+  }
+  const photo = { dataUrl, uploading: true };
+  rec.photos.push(photo);
+  render();
+  try {
+    const res = await fetch('/api/photos', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ imageBase64: dataUrl })
+    });
+    if (!res.ok) throw new Error('upload failed: ' + res.status);
+    const { key: photoKey } = await res.json();
+    photo.key = photoKey;
+    photo.uploading = false;
+  } catch (e) {
+    console.error(e);
+    photo.uploading = false;
+    photo.error = true;
+  }
+  render();
+}
+
+function removePhoto(key, i){
+  state.formData.items[key].photos.splice(i, 1);
+  render();
 }
 function addCalRow(){
   state.formData.correctiveActions.push({item:'',action:'',assignedTo:'',dueDate:''});
@@ -532,6 +632,16 @@ async function submitForm(){
     if (!d.employeeSignature) { showToast('Please sign to acknowledge'); return; }
   } else {
     if (!d.overallResult) { showToast('Please select an overall result'); return; }
+    const stillUploading = Object.values(d.items || {}).some(r => (r.photos||[]).some(p => p.uploading));
+    if (stillUploading) { showToast('A photo is still uploading — please wait a moment'); return; }
+  }
+
+  // strip local-only preview data before saving; keep only successfully uploaded photo keys
+  const cleanData = JSON.parse(JSON.stringify(d));
+  if (cleanData.items) {
+    Object.values(cleanData.items).forEach(r => {
+      r.photos = (r.photos || []).filter(p => p.key).map(p => ({ key: p.key }));
+    });
   }
 
   const payload = {
@@ -542,7 +652,7 @@ async function submitForm(){
     department: f.dept || d.department || '',
     employeeName: state.employeeName,
     submittedAtLocal: new Date().toISOString(),
-    data: d
+    data: cleanData
   };
 
   state.saving = true;
@@ -624,6 +734,16 @@ function openDetail(id){
   window.scrollTo(0,0);
 }
 
+function detailItemLineHtml(k, rec){
+  const photos = rec.photos || [];
+  return `<li>
+    <b>${esc(k.split('||')[1])}</b>${rec.comment ? ' — ' + esc(rec.comment) : ''}
+    ${photos.length ? `<div class="photostrip" style="margin-top:6px;">${photos.map(p => `
+      <a href="/api/photos/${esc(p.key)}" target="_blank"><div class="phothumb"><img src="/api/photos/${esc(p.key)}"></div></a>
+    `).join('')}</div>` : ''}
+  </li>`;
+}
+
 function detailHtml(){
   const i = state.detailItem;
   if (!i) return '<div class="empty">Not found.</div>';
@@ -643,6 +763,7 @@ function detailHtml(){
   } else {
     const items = i.data.items || {};
     const attnKeys = Object.keys(items).filter(k => items[k].status === 'ATTN');
+    const notedKeys = Object.keys(items).filter(k => items[k].status !== 'ATTN' && (items[k].comment || (items[k].photos||[]).length));
     body = `
     <div class="detailgrid">
       <div><b>Inspected By</b>${esc(i.data.inspectedBy)}</div>
@@ -653,8 +774,13 @@ function detailHtml(){
     ${attnKeys.length ? `
       <div class="sectiontitle">Items Needing Attention</div>
       <ul class="safetylist">
-        ${attnKeys.map(k => `<li><b>${esc(k.split('||')[1])}</b>${items[k].comment ? ' — ' + esc(items[k].comment) : ''}</li>`).join('')}
+        ${attnKeys.map(k => detailItemLineHtml(k, items[k])).join('')}
       </ul>` : `<p style="color:var(--text-mute);">No items were flagged as Needs Attention.</p>`}
+    ${notedKeys.length ? `
+      <div class="sectiontitle">Other Notes</div>
+      <ul class="safetylist">
+        ${notedKeys.map(k => detailItemLineHtml(k, items[k])).join('')}
+      </ul>` : ''}
     ${(i.data.correctiveActions||[]).length ? `
       <div class="sectiontitle">Corrective Action Log</div>
       <table class="caltable">
