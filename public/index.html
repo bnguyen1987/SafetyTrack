@@ -344,7 +344,7 @@ function homeHtml(){
           <div>
             <div class="fi-title">${esc(f.title)}</div>
             <div class="fi-meta">${badgeFor(f)} &nbsp;${esc(f.code)}</div>
-            <div class="fi-lastinspected">${lastMap[f.id] ? '🕒 Last inspected ' + esc(timeAgo(lastMap[f.id])) : (state.historyLoaded ? '⚪ Not yet inspected' : '')}</div>
+            <div class="fi-lastinspected">${f.template === 'machine' ? '' : (lastMap[f.id] ? '🕒 Last inspected ' + esc(timeAgo(lastMap[f.id])) : (state.historyLoaded ? '⚪ Not yet inspected' : ''))}</div>
           </div>
         </div>
         <div class="fi-arrow">›</div>
