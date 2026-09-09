@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>GWPG SafetyTrack</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root{
     --teal:#0E6654;
@@ -130,10 +131,19 @@
   .detailgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:16px;}
   .detailgrid div b{display:block;font-size:11px;color:var(--text-mute);text-transform:uppercase;}
   .print-only{display:none;}
+  .qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .qrcard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+  .qrcanvaswrap{display:flex;justify-content:center;margin-bottom:10px;}
+  .qrcanvaswrap canvas{max-width:100%;height:auto;}
+  .qrmachine{font-weight:700;font-size:15px;}
+  .qrform{font-size:11.5px;color:var(--text-mute);margin-top:2px;}
+  .qrurl{font-size:9.5px;color:var(--text-mute);word-break:break-all;margin-top:8px;}
   @media print{
-    header.appbar,.actionbar,.filterbar,.backlink,.btn{display:none!important;}
+    header.appbar,.actionbar,.filterbar,.backlink,.btn,.hero p{display:none!important;}
     body{background:#fff;}
     .print-only{display:block;}
+    .qrgrid{grid-template-columns:repeat(2,1fr);}
+    .qrcard{break-inside:avoid;border:1px dashed #999;}
   }
 </style>
 </head>
@@ -200,7 +210,7 @@ const MACHINE_UI = {
     stepsReviewed: n => `The ${n} safety steps above have been reviewed with me.`,
     employeeSignatureLabel: 'Employee Signature (sign with finger or stylus)',
     clearSignature: 'Clear Signature',
-    supervisorSignature: 'Supervisor Signature',
+    supervisorSignature: 'Supervisor Signature (Optional)',
     date: 'Date',
     pleaseEnterName: 'Please enter the employee name',
     pleaseSign: 'Please have the employee sign to acknowledge',
@@ -216,7 +226,7 @@ const MACHINE_UI = {
     stepsReviewed: n => `Los ${n} pasos de seguridad anteriores han sido revisados conmigo.`,
     employeeSignatureLabel: 'Firma del Empleado (firme con el dedo o lápiz óptico)',
     clearSignature: 'Borrar Firma',
-    supervisorSignature: 'Firma del Supervisor',
+    supervisorSignature: 'Firma del Supervisor (Opcional)',
     date: 'Fecha',
     pleaseEnterName: 'Por favor ingrese el nombre del empleado',
     pleaseSign: 'Por favor pida al empleado que firme para confirmar',
@@ -235,10 +245,15 @@ let apiReady = true; // API is same-origin once deployed on Netlify; no config n
 
 const LOCATIONS = ['Ontario', 'City of Industry'];
 
+const QR_PARAMS = new URLSearchParams(window.location.search);
+const QR_FORM_ID = QR_PARAMS.get('form') || null;
+const QR_LOC = QR_PARAMS.get('loc') || null;
+
 const state = {
-  screen: 'home',        // home | form | history | detail
+  screen: 'home',        // home | form | history | detail | openitems | qrcodes
   employeeName: localStorage.getItem('gwpg_st_name') || '',
   location: localStorage.getItem('gwpg_st_location') || '',
+  pendingQrForm: (QR_FORM_ID && getFormSafe(QR_FORM_ID)) ? QR_FORM_ID : null,
   activeFormId: null,
   formData: {},           // in-progress answers for active form
   search: '',
@@ -249,9 +264,18 @@ const state = {
   openItemsFilterLocation: null,
   historySearch: '',
   detailItem: null,
+  detailFrom: 'history',
   saving: false,
   uiOpen: {}      // transient: which items have their note field manually expanded
 };
+
+// QR deep-link: if a valid location came with it, lock that in now
+if (state.pendingQrForm && QR_LOC && LOCATIONS.includes(QR_LOC)) {
+  state.location = QR_LOC;
+  localStorage.setItem('gwpg_st_location', QR_LOC);
+}
+
+function getFormSafe(id){ return FORMS.find(f => f.id === id) || null; }
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -300,7 +324,7 @@ function blankMachineData(f){
     department: f.dept,
     machine: f.machine,
     employeeSignatureDataUrl: '',
-    supervisorSignature: state.employeeName,
+    supervisorSignature: '',
     ackDate: todayStr(),
     lang: localStorage.getItem('gwpg_st_lang') || 'en'
   };
@@ -350,6 +374,7 @@ function headerHtml(){
       <button onclick="goHome()">Checklists</button>
       <button onclick="goOpenItems()">⚠ Open Items</button>
       <button onclick="goHistory()">History</button>
+      <button onclick="goQrCodes()">QR Codes</button>
       ${who ? `<button onclick="changeName()">Logout</button>` : ''}
     </div>
   </header>`;
@@ -369,20 +394,26 @@ function screenHtml(){
   if (state.screen === 'history') return historyHtml();
   if (state.screen === 'detail') return detailHtml();
   if (state.screen === 'openitems') return openItemsHtml();
+  if (state.screen === 'qrcodes') return qrCodesHtml();
   return homeHtml();
 }
 
 function loginHtml(){
+  const qrForm = state.pendingQrForm ? getFormSafe(state.pendingQrForm) : null;
+  const locKnown = qrForm && state.location;
   return `
   <div class="loginwrap">
     <div class="logo">GW</div>
-    <h2 style="margin:0 0 6px;">Welcome to SafetyTrack</h2>
-    <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">Enter your name and pick your location to start filling out safety checklists.</p>
+    <h2 style="margin:0 0 6px;">${qrForm ? esc(qrForm.title) : 'Welcome to SafetyTrack'}</h2>
+    <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">${qrForm ? 'Enter your name to start this checklist.' : 'Enter your name and pick your location to start filling out safety checklists.'}</p>
     <input type="text" id="nameInput" placeholder="Your full name" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
+    ${locKnown ? `
+      <p style="font-size:13px;color:var(--text-mute);margin-bottom:12px;">📍 ${esc(state.location)}</p>
+    ` : `
     <select id="locationInput" style="text-align:center;margin-bottom:12px;">
       <option value="">Select your location...</option>
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${state.location===l?'selected':''}>${esc(l)}</option>`).join('')}
-    </select>
+    </select>`}
     <button class="btn primary block" onclick="submitName()">Continue</button>
 
   </div>`;
@@ -397,6 +428,7 @@ function goOpenItems(){
   loadHistoryIfNeeded();
   render();
 }
+function goQrCodes(){ if(!state.employeeName) return; state.screen='qrcodes'; render(); }
 function changeName(){
   localStorage.removeItem('gwpg_st_name');
   localStorage.removeItem('gwpg_st_location');
@@ -407,7 +439,8 @@ function changeName(){
 }
 function submitName(){
   const v = document.getElementById('nameInput').value.trim();
-  const loc = document.getElementById('locationInput').value;
+  const locInput = document.getElementById('locationInput');
+  const loc = locInput ? locInput.value : state.location;
   if (!v) { showToast('Please enter your name'); return; }
   if (!loc) { showToast('Please select your location'); return; }
   state.employeeName = v;
@@ -416,7 +449,13 @@ function submitName(){
   localStorage.setItem('gwpg_st_location', loc);
   state.historyLoaded = false;
   loadHistoryIfNeeded();
-  render();
+  if (state.pendingQrForm) {
+    const formId = state.pendingQrForm;
+    state.pendingQrForm = null;
+    startForm(formId);
+  } else {
+    render();
+  }
 }
 
 function lastInspectedMap(){
@@ -720,7 +759,7 @@ function machineFormHtml(f){
       <button type="button" class="btn ghost" style="margin-top:8px;" onclick="clearSignature()">${t.clearSignature}</button>
     </div>
     <div class="fieldrow" style="margin-top:14px;">
-      <div><label>${t.supervisorSignature}</label><input type="text" value="${esc(d.supervisorSignature)}" disabled></div>
+      <div><label>${t.supervisorSignature}</label><input type="text" value="${esc(d.supervisorSignature)}" oninput="setMachineField('supervisorSignature', this.value)" placeholder="${lang==='es'?'Opcional':'Optional'}"></div>
       <div><label>${t.date}</label><input type="date" value="${esc(d.ackDate)}" oninput="setMachineField('ackDate', this.value)"></div>
     </div>
   </div>`;
@@ -936,6 +975,46 @@ function collectOpenItems(){
   return rows;
 }
 
+function qrLinkFor(f){
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.searchParams.set('form', f.id);
+  if (f.location) url.searchParams.set('loc', f.location);
+  return url.toString();
+}
+
+function qrCodesHtml(){
+  const machineForms = FORMS.filter(f => f.template === 'machine' && (!f.location || f.location === state.location));
+  return `
+  <div class="hero">
+    <h1>QR Codes</h1>
+    <p>Print one of these and post it at each machine. Scanning it opens that machine's Monthly Safety Checklist directly — the employee just enters their name, signs, and submits.</p>
+  </div>
+  <div style="margin-bottom:14px;"><button class="btn secondary" onclick="window.print()">🖨️ Print All</button></div>
+  <div class="qrgrid">
+    ${machineForms.map(f => `
+      <div class="qrcard">
+        <div class="qrcanvaswrap"><canvas id="qrc-${esc(f.id)}"></canvas></div>
+        <div class="qrmachine">${esc(f.machine)}</div>
+        <div class="qrform">Monthly Machine Safety Checklist</div>
+        <div class="qrurl">${esc(qrLinkFor(f))}</div>
+      </div>`).join('')}
+  </div>
+  ${machineForms.length === 0 ? `<div class="empty">No machine checklists set up for ${esc(state.location)}.</div>` : ''}
+  `;
+}
+
+function drawQrCodes(){
+  if (state.screen !== 'qrcodes' || !window.QRCode) return;
+  const machineForms = FORMS.filter(f => f.template === 'machine' && (!f.location || f.location === state.location));
+  machineForms.forEach(f => {
+    const el = document.getElementById('qrc-' + f.id);
+    if (!el || el.dataset.drawn) return;
+    el.dataset.drawn = '1';
+    QRCode.toCanvas(el, qrLinkFor(f), { width: 180, margin: 1 }, (err) => { if (err) console.error(err); });
+  });
+}
+
 function openItemsHtml(){
   const locFilter = state.openItemsFilterLocation || 'all';
   let rows = collectOpenItems();
@@ -1071,7 +1150,7 @@ function detailHtml(){
       <div><b>Shift</b>${esc(i.data.shift)}</div>
       <div><b>Machine</b>${esc(i.data.machine)}</div>
       <div><b>Date</b>${esc(i.data.ackDate)}</div>
-      <div><b>Supervisor Signature</b>${esc(i.data.supervisorSignature||'—')}</div>
+      <div><b>Supervisor Signature (Optional)</b>${esc(i.data.supervisorSignature||'—')}</div>
       <div><b>Language</b>${lang === 'es' ? 'Español' : 'English'}</div>
     </div>
     ${i.data.employeeSignatureDataUrl ? `
@@ -1165,6 +1244,7 @@ function wireEvents(){
   if (s) s.oninput = (e) => { state.search = e.target.value; render(); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
   const sig = document.getElementById('sigCanvas');
   if (sig) initSignaturePad(sig);
+  drawQrCodes();
 }
 
 function initSignaturePad(canvas){
@@ -1224,7 +1304,15 @@ function clearSignature(){
   state.formData.employeeSignatureDataUrl = '';
 }
 
-render();
+// If a QR code linked straight to a form and we already know who's using this
+// device, skip the home list entirely and jump right into that checklist.
+if (state.pendingQrForm && state.employeeName && state.location) {
+  const qrFormId = state.pendingQrForm;
+  state.pendingQrForm = null;
+  startForm(qrFormId);
+} else {
+  render();
+}
 if (state.employeeName) loadHistoryIfNeeded();
 </script>
 
