@@ -205,12 +205,12 @@ function blankZoneOrEquipData(f, sectionsOverride){
 }
 function blankMachineData(f){
   return {
-    employeeName: state.employeeName,
+    employeeName: '',
     shift: '',
     department: f.dept,
     machine: f.machine,
-    employeeSignature: state.employeeName,
-    supervisorSignature: '',
+    employeeSignatureDataUrl: '',
+    supervisorSignature: state.employeeName,
     ackDate: todayStr()
   };
 }
@@ -538,11 +538,13 @@ function machineFormHtml(f){
   <div class="card">
     <div class="sectiontitle" style="margin-top:0;">Acknowledgment</div>
     <p style="font-size:13px;color:var(--text-mute);">The ${f.steps.length} safety steps above have been reviewed with me.</p>
-    <div class="fieldrow">
-      <div><label>Employee Signature (type full name)</label><input type="text" value="${esc(d.employeeSignature)}" oninput="setMachineField('employeeSignature', this.value)"></div>
-      <div><label>Supervisor Signature (type full name)</label><input type="text" value="${esc(d.supervisorSignature)}" oninput="setMachineField('supervisorSignature', this.value)" placeholder="Optional"></div>
+    <div>
+      <label>Employee Signature (sign with finger or stylus)</label>
+      <canvas id="sigCanvas" style="width:100%;height:150px;touch-action:none;border:1px solid var(--border);border-radius:8px;background:#fff;display:block;"></canvas>
+      <button type="button" class="btn ghost" style="margin-top:8px;" onclick="clearSignature()">Clear Signature</button>
     </div>
-    <div class="fieldrow">
+    <div class="fieldrow" style="margin-top:14px;">
+      <div><label>Supervisor Signature</label><input type="text" value="${esc(d.supervisorSignature)}" disabled></div>
       <div><label>Date</label><input type="date" value="${esc(d.ackDate)}" oninput="setMachineField('ackDate', this.value)"></div>
     </div>
   </div>`;
@@ -655,7 +657,8 @@ async function submitForm(){
   const d = state.formData;
 
   if (f.template === 'machine') {
-    if (!d.employeeSignature) { showToast('Please sign to acknowledge'); return; }
+    if (!d.employeeName || !d.employeeName.trim()) { showToast('Please enter the employee name'); return; }
+    if (!d.employeeSignatureDataUrl) { showToast('Please have the employee sign to acknowledge'); return; }
   } else {
     if (!d.overallResult) { showToast('Please select an overall result'); return; }
     const stillUploading = Object.values(d.items || {}).some(r => (r.photos||[]).some(p => p.uploading));
@@ -783,9 +786,12 @@ function detailHtml(){
       <div><b>Shift</b>${esc(i.data.shift)}</div>
       <div><b>Machine</b>${esc(i.data.machine)}</div>
       <div><b>Date</b>${esc(i.data.ackDate)}</div>
-      <div><b>Employee Signature</b>${esc(i.data.employeeSignature)}</div>
       <div><b>Supervisor Signature</b>${esc(i.data.supervisorSignature||'—')}</div>
     </div>
+    ${i.data.employeeSignatureDataUrl ? `
+      <div class="sectiontitle" style="margin-top:16px;">Employee Signature</div>
+      <img src="${esc(i.data.employeeSignatureDataUrl)}" style="max-width:320px;border:1px solid var(--border);border-radius:8px;background:#fff;">` : ''}
+    <div class="sectiontitle">Safety Steps Acknowledged</div>
     <ul class="safetylist">${(f?f.steps:[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`;
   } else {
     const items = i.data.items || {};
@@ -849,6 +855,65 @@ function exportHistoryCsv(){
 function wireEvents(){
   const s = document.getElementById('searchInput');
   if (s) s.oninput = (e) => { state.search = e.target.value; render(); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
+  const sig = document.getElementById('sigCanvas');
+  if (sig) initSignaturePad(sig);
+}
+
+function initSignaturePad(canvas){
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = rect.width * ratio;
+  canvas.height = rect.height * ratio;
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1F2A26';
+
+  const existing = state.formData.employeeSignatureDataUrl;
+  if (existing) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    img.src = existing;
+  }
+
+  let drawing = false;
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  function start(e){
+    drawing = true;
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    e.preventDefault();
+  }
+  function move(e){
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    e.preventDefault();
+  }
+  function end(){
+    if (!drawing) return;
+    drawing = false;
+    state.formData.employeeSignatureDataUrl = canvas.toDataURL('image/png');
+  }
+  canvas.addEventListener('pointerdown', start);
+  canvas.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', end);
+}
+
+function clearSignature(){
+  const canvas = document.getElementById('sigCanvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  state.formData.employeeSignatureDataUrl = '';
 }
 
 render();
