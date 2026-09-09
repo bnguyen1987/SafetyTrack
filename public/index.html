@@ -113,6 +113,8 @@
   .histitem{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
   .histitem:hover{border-color:var(--teal);}
   .histitem .h-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;}
+  .histprintbtn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:13px;cursor:pointer;line-height:1;}
+  .histprintbtn:hover{border-color:var(--teal);background:var(--teal-light);}
   .histitem .h-meta{font-size:12px;color:var(--text-mute);margin-top:4px;}
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
   .filterbar select,.filterbar input{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;}
@@ -789,10 +791,23 @@ function histItemHtml(i){
   <div class="histitem" onclick="openDetail('${i.id}')">
     <div class="h-top">
       <span>${esc(i.formTitle)}</span>
-      ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">Acknowledged</span>' : '')}
+      <span style="display:flex;align-items:center;gap:8px;">
+        ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">Acknowledged</span>' : '')}
+        <button type="button" class="histprintbtn" title="Print" onclick="printSubmission('${escJs(i.id)}', event)">🖨️</button>
+      </span>
     </div>
     <div class="h-meta">${esc(i.employeeName)}${i.location ? ' &middot; 📍 ' + esc(i.location) : ''} &middot; ${esc(dt)}</div>
   </div>`;
+}
+
+function printSubmission(id, evt){
+  if (evt) evt.stopPropagation();
+  const item = state.historyItems.find(i => i.id === id);
+  if (!item) return;
+  state.detailItem = item;
+  state.screen = 'detail';
+  render();
+  setTimeout(() => window.print(), 250);
 }
 
 function openDetail(id){
