@@ -3316,22 +3316,30 @@ function qrDataUrl(text){
 }
 
 function qrCodesHtml(){
-  const machineForms = FORMS.filter(f => f.template === 'machine' && (!f.location || f.location === state.location));
+  const qrForms = FORMS.filter(f =>
+    (f.template === 'machine' || f.id === 'daily-forklift') &&
+    (!f.location || f.location === state.location)
+  );
   return `
   <div class="hero">
     <h1>QR Codes</h1>
-    <p>Print one of these and post it at each machine. Scanning it opens that machine's Monthly Safety Checklist directly — the employee just enters their name, signs, and submits.</p>
+    <p>Print one of these and post it at each machine. Scanning it opens that checklist directly — the employee just enters their name (and signs, where required) and submits.</p>
   </div>
   <div style="margin-bottom:14px;"><button class="btn secondary" onclick="window.print()">🖨️ Print All</button></div>
   <div class="qrgrid">
-    ${machineForms.map(f => `
+    ${qrForms.map(f => {
+      const isMachine = f.template === 'machine';
+      const topLine = isMachine ? 'Monthly Machine Safety Checklist' : f.title;
+      const subLine = isMachine ? f.machine : f.code;
+      return `
       <div class="qrcard">
-        <div class="qrcanvaswrap"><img src="${qrDataUrl(qrLinkFor(f))}" width="180" height="180" alt="QR code for ${esc(f.machine)}"></div>
-        <div class="qrform">Monthly Machine Safety Checklist</div>
-        <div class="qrmachine">${esc(f.machine)}</div>
-      </div>`).join('')}
+        <div class="qrcanvaswrap"><img src="${qrDataUrl(qrLinkFor(f))}" width="180" height="180" alt="QR code for ${esc(topLine)}"></div>
+        <div class="qrform">${esc(topLine)}</div>
+        <div class="qrmachine">${esc(subLine)}</div>
+      </div>`;
+    }).join('')}
   </div>
-  ${machineForms.length === 0 ? `<div class="empty">No machine checklists set up for ${esc(state.location)}.</div>` : ''}
+  ${qrForms.length === 0 ? `<div class="empty">No checklists set up for ${esc(state.location)}.</div>` : ''}
   `;
 }
 
