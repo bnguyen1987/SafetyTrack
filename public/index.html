@@ -2598,6 +2598,7 @@ function showToast(msg){
 function getForm(id){ return FORMS.find(f => f.id === id); }
 
 function badgeFor(f){
+  if (f.id === 'fire-extinguisher') return '<span class="badge equip">Equipment Check</span>';
   if (f.template === 'zone') return '<span class="badge zone">Area Inspection</span>';
   if (f.template === 'ladder' || f.template === 'equipment') return '<span class="badge equip">Equipment Check</span>';
   if (f.template === 'machine') return '<span class="badge machine">Monthly Acknowledgment</span>';
@@ -2795,8 +2796,8 @@ function timeAgo(iso){
 }
 
 const FORM_GROUPS = [
-  { key: 'zone', label: '🛡️ Area & Department Inspections', match: f => f.template === 'zone' },
-  { key: 'equipment', label: '🔧 Equipment Checks', match: f => f.template === 'ladder' || f.template === 'equipment' },
+  { key: 'zone', label: '🛡️ Area & Department Inspections', match: f => f.template === 'zone' && f.id !== 'fire-extinguisher' },
+  { key: 'equipment', label: '🔧 Equipment Checks', match: f => f.template === 'ladder' || f.template === 'equipment' || f.id === 'fire-extinguisher' },
   { key: 'machine', label: '⚙️ Monthly Machine Safety Checklists', match: f => f.template === 'machine' }
 ];
 
