@@ -2347,7 +2347,11 @@ var qrcode = function() {
   .hero p{margin:0;opacity:.9;font-size:14px;}
   .searchbox{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);font-size:15px;margin-bottom:14px;background:#fff;}
   .formlist{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
-  .grouptitle{font-weight:700;font-size:14px;color:var(--teal-dark);margin:4px 0 10px;text-transform:uppercase;letter-spacing:.4px;}
+  .grouptitle{font-weight:700;font-size:14px;color:var(--teal-dark);margin:4px 0 10px;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:10px 4px;user-select:none;}
+  .grouptitle:hover{color:var(--teal);}
+  .groupcount{background:var(--teal-light);color:var(--teal-dark);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;text-transform:none;letter-spacing:0;}
+  .groupchevron{display:inline-block;transition:transform .15s;font-size:18px;color:var(--text-mute);}
+  .groupchevron.open{transform:rotate(90deg);}
   .formitem{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
   .formitem:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(14,102,84,.12);}
   .formitem .fi-left{display:flex;align-items:center;gap:12px;}
@@ -2573,7 +2577,8 @@ const state = {
   detailItem: null,
   detailFrom: 'history',
   saving: false,
-  uiOpen: {}      // transient: which items have their note field manually expanded
+  uiOpen: {},      // transient: which items have their note field manually expanded
+  collapsedGroups: {}   // transient: which home-screen groups are collapsed (default expanded)
 };
 
 // QR deep-link: if a valid location came with it, lock that in now
@@ -2821,15 +2826,21 @@ function homeHtml(){
   const locForms = FORMS.filter(f => !f.location || f.location === state.location);
   const list = locForms.filter(f => !q || f.title.toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
   const lastMap = lastInspectedMap();
+  const searching = !!q;
 
   const groupsHtml = FORM_GROUPS.map(g => {
     const groupForms = list.filter(g.match);
     if (groupForms.length === 0) return '';
+    const expanded = searching || !state.collapsedGroups[g.key];
     return `
-    <div class="grouptitle">${g.label}</div>
+    <div class="grouptitle" onclick="toggleGroup('${g.key}')">
+      <span>${g.label} <span class="groupcount">${groupForms.length}</span></span>
+      <span class="groupchevron ${expanded?'open':''}">›</span>
+    </div>
+    ${expanded ? `
     <div class="formlist">
       ${groupForms.map(f => formItemHtml(f, lastMap)).join('')}
-    </div>`;
+    </div>` : ''}`;
   }).join('');
 
   return `
@@ -2842,6 +2853,11 @@ function homeHtml(){
   ${list.length === 0 && locForms.length === 0 ? `<div class="empty">No checklists have been set up yet for ${esc(state.location)}. Check back soon.</div>` : ''}
   ${list.length === 0 && locForms.length > 0 ? `<div class="empty">No checklists match "${esc(state.search)}"</div>` : ''}
   `;
+}
+
+function toggleGroup(key){
+  state.collapsedGroups[key] = !state.collapsedGroups[key];
+  render();
 }
 
 // ---------- FORM screen ----------
