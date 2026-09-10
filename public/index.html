@@ -2346,7 +2346,8 @@ var qrcode = function() {
   .hero h1{margin:0 0 6px;font-size:20px;}
   .hero p{margin:0;opacity:.9;font-size:14px;}
   .searchbox{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);font-size:15px;margin-bottom:14px;background:#fff;}
-  .formlist{display:flex;flex-direction:column;gap:10px;}
+  .formlist{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+  .grouptitle{font-weight:700;font-size:14px;color:var(--teal-dark);margin:4px 0 10px;text-transform:uppercase;letter-spacing:.4px;}
   .formitem{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
   .formitem:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(14,102,84,.12);}
   .formitem .fi-left{display:flex;align-items:center;gap:12px;}
@@ -2793,19 +2794,14 @@ function timeAgo(iso){
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function homeHtml(){
-  const q = state.search.toLowerCase();
-  const locForms = FORMS.filter(f => !f.location || f.location === state.location);
-  const list = locForms.filter(f => !q || f.title.toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
-  const lastMap = lastInspectedMap();
+const FORM_GROUPS = [
+  { key: 'zone', label: '🛡️ Area & Department Inspections', match: f => f.template === 'zone' },
+  { key: 'equipment', label: '🔧 Equipment Checks', match: f => f.template === 'ladder' || f.template === 'equipment' },
+  { key: 'machine', label: '⚙️ Monthly Machine Safety Checklists', match: f => f.template === 'machine' }
+];
+
+function formItemHtml(f, lastMap){
   return `
-  <div class="hero">
-    <h1>Safety Checklists</h1>
-    <p>${esc(state.location)} &middot; Select a checklist below to complete it. Your submission is saved automatically.</p>
-  </div>
-  <input class="searchbox" id="searchInput" placeholder="Search checklists..." value="${esc(state.search)}" />
-  <div class="formlist">
-    ${list.map(f => `
       <div class="formitem" onclick="startForm('${f.id}')">
         <div class="fi-left">
           <div class="fi-icon">${iconFor(f)}</div>
@@ -2816,10 +2812,35 @@ function homeHtml(){
           </div>
         </div>
         <div class="fi-arrow">›</div>
-      </div>`).join('')}
-    ${list.length === 0 && locForms.length === 0 ? `<div class="empty">No checklists have been set up yet for ${esc(state.location)}. Check back soon.</div>` : ''}
-    ${list.length === 0 && locForms.length > 0 ? `<div class="empty">No checklists match "${esc(state.search)}"</div>` : ''}
-  </div>`;
+      </div>`;
+}
+
+function homeHtml(){
+  const q = state.search.toLowerCase();
+  const locForms = FORMS.filter(f => !f.location || f.location === state.location);
+  const list = locForms.filter(f => !q || f.title.toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
+  const lastMap = lastInspectedMap();
+
+  const groupsHtml = FORM_GROUPS.map(g => {
+    const groupForms = list.filter(g.match);
+    if (groupForms.length === 0) return '';
+    return `
+    <div class="grouptitle">${g.label}</div>
+    <div class="formlist">
+      ${groupForms.map(f => formItemHtml(f, lastMap)).join('')}
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="hero">
+    <h1>Safety Checklists</h1>
+    <p>${esc(state.location)} &middot; Select a checklist below to complete it. Your submission is saved automatically.</p>
+  </div>
+  <input class="searchbox" id="searchInput" placeholder="Search checklists..." value="${esc(state.search)}" />
+  ${groupsHtml}
+  ${list.length === 0 && locForms.length === 0 ? `<div class="empty">No checklists have been set up yet for ${esc(state.location)}. Check back soon.</div>` : ''}
+  ${list.length === 0 && locForms.length > 0 ? `<div class="empty">No checklists match "${esc(state.search)}"</div>` : ''}
+  `;
 }
 
 // ---------- FORM screen ----------
