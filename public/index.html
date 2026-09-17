@@ -3261,7 +3261,8 @@ function machineFormHtml(f){
 function setTopField(key, val){ state.formData[key] = val; }
 function setHeaderField(key, val){
   state.formData.header[key] = val;
-  if (state.activeFormId === 'ladder') render(); // re-render to load section by type
+  const f = getForm(state.activeFormId);
+  if (f && f.template === 'ladder' && key === f.typeKey) render(); // re-render only when the ladder TYPE changes, to load the right section
 }
 function setMachineField(key, val){ state.formData[key] = val; }
 function setMachineLang(lang){
