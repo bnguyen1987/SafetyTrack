@@ -2638,8 +2638,8 @@ const state = {
   search: '',
   historyItems: [],
   historyLoaded: false,
-  historyFilterForm: 'all',
   historyFilterLocation: 'all',
+  historyExpandedGroups: {},
   openItemsFilterLocation: null,
   historySearch: '',
   detailItem: null,
@@ -3743,32 +3743,65 @@ function openItemRowHtml(r){
   </div>`;
 }
 
-function historyHtml(){
-  const formOptions = FORMS.map(f => `<option value="${f.id}">${esc(f.title)}</option>`).join('');
+function historyMatchesSearch(item, q){
+  const haystackParts = [
+    item.formTitle, item.employeeName, item.location, item.department, item.formCode
+  ];
+  try { haystackParts.push(JSON.stringify(item.data || {})); } catch(e) {}
+  return haystackParts.join(' ').toLowerCase().includes(q);
+}
+
+function historyFilteredItems(){
   let items = state.historyItems;
   if (state.historyFilterLocation !== 'all') items = items.filter(i => i.location === state.historyFilterLocation);
-  if (state.historyFilterForm !== 'all') items = items.filter(i => i.formId === state.historyFilterForm);
   if (state.historySearch) {
     const q = state.historySearch.toLowerCase();
-    items = items.filter(i => (i.employeeName||'').toLowerCase().includes(q));
+    items = items.filter(i => historyMatchesSearch(i, q));
   }
+  return items;
+}
+
+function historyHtml(){
+  const items = historyFilteredItems();
+  const searching = !!state.historySearch;
+
+  // group by checklist (formId), newest-first within each group,
+  // groups themselves ordered by their most recent submission
+  const groupMap = new Map();
+  items.forEach(i => {
+    if (!groupMap.has(i.formId)) groupMap.set(i.formId, { formId: i.formId, formTitle: i.formTitle, items: [] });
+    groupMap.get(i.formId).items.push(i);
+  });
+  const groups = [...groupMap.values()].sort((a, b) => {
+    const at = a.items[0].submittedAtLocal || '', bt = b.items[0].submittedAtLocal || '';
+    return bt.localeCompare(at);
+  });
+
   return `
   <div class="filterbar">
     <select id="histLocationFilter" onchange="setHistLocationFilter(this.value)">
       <option value="all">All locations</option>
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${state.historyFilterLocation===l?'selected':''}>${esc(l)}</option>`).join('')}
     </select>
-    <select id="histFormFilter" onchange="setHistFilter(this.value)">
-      <option value="all">All checklists</option>
-      ${formOptions}
-    </select>
-    <input type="text" id="histSearch" placeholder="Search by employee..." value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
+    <input type="text" id="histSearch" placeholder="Search employee, machine, location, notes..." value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
     <button class="btn ghost" onclick="exportHistoryCsv()">Export CSV</button>
   </div>
-  ${items.length === 0 ? `<div class="empty">No submissions found.</div>` : items.map(i => histItemHtml(i)).join('')}
+  ${groups.length === 0 ? `<div class="empty">No submissions found.</div>` : groups.map(g => {
+    const key = g.formId;
+    const expanded = searching || !!state.historyExpandedGroups[key];
+    return `
+    <div class="grouptitle" onclick="toggleHistoryGroup('${escJs(key)}')">
+      <span>${esc(g.formTitle)} <span class="groupcount">${g.items.length}</span></span>
+      <span class="groupchevron ${expanded?'open':''}">›</span>
+    </div>
+    ${expanded ? g.items.map(i => histItemHtml(i)).join('') : ''}`;
+  }).join('')}
   `;
 }
-function setHistFilter(v){ state.historyFilterForm = v; render(); }
+function toggleHistoryGroup(key){
+  state.historyExpandedGroups[key] = !state.historyExpandedGroups[key];
+  render();
+}
 function setHistLocationFilter(v){ state.historyFilterLocation = v; render(); }
 function setHistSearch(v){ state.historySearch = v; render(); }
 
@@ -3929,13 +3962,7 @@ function detailHtml(){
 }
 
 function exportHistoryCsv(){
-  let items = state.historyItems;
-  if (state.historyFilterLocation !== 'all') items = items.filter(i => i.location === state.historyFilterLocation);
-  if (state.historyFilterForm !== 'all') items = items.filter(i => i.formId === state.historyFilterForm);
-  if (state.historySearch) {
-    const q = state.historySearch.toLowerCase();
-    items = items.filter(i => (i.employeeName||'').toLowerCase().includes(q));
-  }
+  const items = historyFilteredItems();
   const rows = [['Form','Code','Location','Employee','Submitted','Overall Result']];
   items.forEach(i => {
     rows.push([
