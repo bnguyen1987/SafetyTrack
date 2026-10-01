@@ -1,5 +1,6 @@
 import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import { pushFlaggedItemsToRepairTrack } from "./lib/repairtrack.mts";
 
 const STORE_NAME = "safety-inspections";
 const MAX_LIST = 500;
@@ -26,6 +27,13 @@ export default async (req: Request, context: Context) => {
     const id = new Date().toISOString().replace(/[:.]/g, "-") + "-" + Math.random().toString(36).slice(2, 8);
     const record = { ...body, submittedAt: new Date().toISOString() };
     await store.setJSON(id, record);
+
+    try {
+      await pushFlaggedItemsToRepairTrack(record);
+    } catch (e) {
+      console.error("RepairTrack push failed (non-fatal)", e);
+    }
+
     return new Response(JSON.stringify({ id, ...record }), {
       status: 201,
       headers: { "content-type": "application/json" }
