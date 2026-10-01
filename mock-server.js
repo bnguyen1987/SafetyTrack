@@ -53,6 +53,17 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify(results));
       return;
     }
+    if (req.method === 'DELETE') {
+      const url = new URL(req.url, 'http://x');
+      const id = url.searchParams.get('id');
+      const requester = (url.searchParams.get('requester') || '').trim().toLowerCase();
+      if (!id) { res.writeHead(400, {'content-type':'application/json'}); res.end(JSON.stringify({error:'Missing id'})); return; }
+      if (requester !== 'brian nguyen') { res.writeHead(403, {'content-type':'application/json'}); res.end(JSON.stringify({error:'Not authorized to delete'})); return; }
+      submissions = submissions.filter(r => r.id !== id);
+      res.writeHead(200, {'content-type':'application/json'});
+      res.end(JSON.stringify({ deleted: id }));
+      return;
+    }
   }
   // static file serving
   const urlPath = req.url.split('?')[0];

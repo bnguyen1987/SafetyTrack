@@ -2474,6 +2474,8 @@ var qrcode = function() {
   .histitem:hover{border-color:var(--teal);}
   .histitem .h-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;}
   .histprintbtn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:4px 8px;font-size:13px;cursor:pointer;line-height:1;}
+  .histdeletebtn{border-color:var(--urgent);}
+  .histdeletebtn:hover{background:var(--urgent-bg);}
   .histprintbtn:hover{border-color:var(--teal);background:var(--teal-light);}
   .histitem .h-meta{font-size:12px;color:var(--text-mute);margin-top:4px;}
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
@@ -3923,7 +3925,10 @@ function openItemRowHtml(r){
   <div class="histitem" onclick="openDetail('${escJs(r.submissionId)}', 'openitems')">
     <div class="h-top">
       <span>${icon} ${esc(itemLabel)}</span>
-      <span class="pill ${pillClass}">${esc(r.formTitle)}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span class="pill ${pillClass}">${esc(r.formTitle)}</span>
+        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="Delete" onclick="deleteSubmission('${escJs(r.submissionId)}', event)">🗑️</button>` : ''}
+      </span>
     </div>
     <div class="h-meta">${esc(r.employeeName)}${r.location ? ' &middot; 📍 ' + esc(r.location) : ''} &middot; ${esc(dt)}</div>
     ${r.comment ? `<div style="font-size:13px;margin-top:6px;color:var(--text);">${esc(r.comment)}</div>` : ''}
@@ -4060,6 +4065,32 @@ function toggleHistoryGroup(key){
 function setHistLocationFilter(v){ state.historyFilterLocation = v; render(); }
 function setHistSearch(v){ state.historySearch = v; render(); }
 
+function canDelete(){
+  return state.employeeName && state.employeeName.trim().toLowerCase() === 'brian nguyen';
+}
+
+async function deleteSubmission(id, evt){
+  if (evt) evt.stopPropagation();
+  if (!canDelete()) return;
+  if (!confirm('Delete this submission? This cannot be undone.')) return;
+  try {
+    const res = await fetch(`${API_URL}?id=${encodeURIComponent(id)}&requester=${encodeURIComponent(state.employeeName)}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Delete failed: ' + res.status);
+    state.historyItems = state.historyItems.filter(i => i.id !== id);
+    showToast('Deleted');
+    if (state.screen === 'detail' && state.detailItem && state.detailItem.id === id) {
+      state.screen = state.detailFrom || 'history';
+      state.detailItem = null;
+    }
+    render();
+  } catch (e) {
+    console.error(e);
+    showToast('Delete failed — check connection and try again');
+  }
+}
+
 function histItemHtml(i){
   const result = i.data && i.data.overallResult;
   const dt = i.submittedAtLocal ? new Date(i.submittedAtLocal).toLocaleString() : '';
@@ -4070,6 +4101,7 @@ function histItemHtml(i){
       <span style="display:flex;align-items:center;gap:8px;">
         ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">Acknowledged</span>' : '')}
         <button type="button" class="histprintbtn" title="Print" onclick="printSubmission('${escJs(i.id)}', event)">🖨️</button>
+        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="Delete" onclick="deleteSubmission('${escJs(i.id)}', event)">🗑️</button>` : ''}
       </span>
     </div>
     <div class="h-meta">${esc(i.employeeName)}${i.location ? ' &middot; 📍 ' + esc(i.location) : ''} &middot; ${esc(dt)}</div>
@@ -4246,7 +4278,10 @@ function detailHtml(){
         <h2 style="margin:0 0 4px;">${esc(i.formTitle)}</h2>
         <div style="font-size:12.5px;color:var(--text-mute);">${esc(i.formCode)} &middot; Submitted by ${esc(i.employeeName)}${i.location ? ' &middot; 📍 ' + esc(i.location) : ''}</div>
       </div>
-      <button class="btn ghost" onclick="window.print()">Print</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost" onclick="window.print()">Print</button>
+        ${canDelete() ? `<button class="btn ghost" style="color:var(--urgent);border-color:var(--urgent);" onclick="deleteSubmission('${escJs(i.id)}', event)">Delete</button>` : ''}
+      </div>
     </div>
   </div>
   <div class="card">${body}</div>`;

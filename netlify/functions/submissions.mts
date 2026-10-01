@@ -63,6 +63,34 @@ export default async (req: Request, context: Context) => {
     });
   }
 
+  if (req.method === "DELETE") {
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    const requester = (url.searchParams.get("requester") || "").trim().toLowerCase();
+
+    if (!id) {
+      return new Response(JSON.stringify({ error: "Missing id" }), {
+        status: 400,
+        headers: { "content-type": "application/json" }
+      });
+    }
+    // Server-side mirror of the client-side restriction — same trust model as
+    // the rest of this app (typed names, no real auth), but it stops a stray
+    // or scripted call from deleting records outside the UI's own guardrail.
+    if (requester !== "brian nguyen") {
+      return new Response(JSON.stringify({ error: "Not authorized to delete" }), {
+        status: 403,
+        headers: { "content-type": "application/json" }
+      });
+    }
+
+    await store.delete(id);
+    return new Response(JSON.stringify({ deleted: id }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+  }
+
   return new Response("Method not allowed", { status: 405 });
 };
 
