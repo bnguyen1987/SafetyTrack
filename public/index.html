@@ -2662,6 +2662,8 @@ const state = {
   historyLoaded: false,
   historyFilterLocation: 'all',
   historyExpandedGroups: {},
+  trainingSearch: '',
+  trainingExpanded: {},
   openItemsFilterLocation: null,
   historySearch: '',
   detailItem: null,
@@ -2805,6 +2807,7 @@ function headerHtml(){
       <button onclick="goOpenItems()">⚠ Open Items</button>
       <button onclick="goHistory()">History</button>
       <button onclick="goQrCodes()">QR Codes</button>
+      <button onclick="goTraining()">🎓 Training</button>
       ${who ? `<button onclick="changeName()">Logout</button>` : ''}
     </div>
   </header>`;
@@ -2825,6 +2828,7 @@ function screenHtml(){
   if (state.screen === 'detail') return detailHtml();
   if (state.screen === 'openitems') return openItemsHtml();
   if (state.screen === 'qrcodes') return qrCodesHtml();
+  if (state.screen === 'training') return trainingRecordsHtml();
   return homeHtml();
 }
 
@@ -2859,6 +2863,7 @@ function goOpenItems(){
   render();
 }
 function goQrCodes(){ if(!state.employeeName) return; state.screen='qrcodes'; render(); }
+function goTraining(){ if(!state.employeeName) return; state.screen='training'; loadHistoryIfNeeded(); render(); }
 function changeName(){
   localStorage.removeItem('gwpg_st_name');
   localStorage.removeItem('gwpg_st_location');
@@ -3806,6 +3811,69 @@ function historyFilteredItems(){
   return items;
 }
 
+function trainingMatchesSearch(item, q){
+  const parts = [item.employeeName, item.formTitle, item.data && item.data.trainedBy];
+  return parts.join(' ').toLowerCase().includes(q);
+}
+
+function trainingRecordsHtml(){
+  const totalMachines = FORMS.filter(f => f.template === 'orientation' && (!f.location || f.location === state.location)).length;
+  let items = state.historyItems.filter(i => i.template === 'orientation' && (!i.location || i.location === state.location));
+  if (state.trainingSearch) {
+    const q = state.trainingSearch.toLowerCase();
+    items = items.filter(i => trainingMatchesSearch(i, q));
+  }
+  const searching = !!state.trainingSearch;
+
+  const byEmployee = new Map();
+  items.forEach(i => {
+    const key = i.employeeName || '(no name)';
+    if (!byEmployee.has(key)) byEmployee.set(key, []);
+    byEmployee.get(key).push(i);
+  });
+  byEmployee.forEach(list => list.sort((a,b) => (b.submittedAtLocal||'').localeCompare(a.submittedAtLocal||'')));
+  const employees = [...byEmployee.entries()].sort((a,b) => a[0].localeCompare(b[0]));
+
+  return `
+  <div class="hero">
+    <h1>Training Records</h1>
+    <p>Who's completed which Machine Safety Orientation, grouped by employee. ${totalMachines} orientations available at ${esc(state.location)}.</p>
+  </div>
+  <div class="filterbar">
+    <input type="text" id="trainingSearch" placeholder="Search employee or machine..." value="${esc(state.trainingSearch)}" oninput="setTrainingSearch(this.value)">
+  </div>
+  ${employees.length === 0 ? `<div class="empty">No orientation records found${searching ? ' for "' + esc(state.trainingSearch) + '"' : ''}.</div>` : employees.map(([name, records]) => {
+    const key = slug(name);
+    const expanded = searching || !!state.trainingExpanded[key];
+    const uniqueMachines = new Set(records.map(r => r.formId)).size;
+    return `
+    <div class="grouptitle" onclick="toggleTrainingGroup('${escJs(key)}')">
+      <span>${esc(name)} <span class="groupcount">${uniqueMachines} of ${totalMachines}</span></span>
+      <span class="groupchevron ${expanded?'open':''}">›</span>
+    </div>
+    ${expanded ? `<div class="formlist">${records.map(r => trainingRowHtml(r)).join('')}</div>` : ''}`;
+  }).join('')}
+  `;
+}
+function toggleTrainingGroup(key){
+  state.trainingExpanded[key] = !state.trainingExpanded[key];
+  render();
+}
+function setTrainingSearch(v){ state.trainingSearch = v; render(); }
+
+function trainingRowHtml(r){
+  const f = getForm(r.formId);
+  const dt = r.submittedAtLocal ? new Date(r.submittedAtLocal).toLocaleDateString() : '';
+  return `
+  <div class="histitem" onclick="openDetail('${escJs(r.id)}', 'training')">
+    <div class="h-top">
+      <span>🎓 ${esc(f ? f.machine : r.formTitle)}</span>
+      <span class="pill Satisfactory">${esc(dt)}</span>
+    </div>
+    <div class="h-meta">${r.data && r.data.trainedBy ? 'Trained by ' + esc(r.data.trainedBy) : 'No trainer listed'}</div>
+  </div>`;
+}
+
 function historyHtml(){
   const items = historyFilteredItems();
   const searching = !!state.historySearch;
@@ -4029,7 +4097,7 @@ function detailHtml(){
       </table>` : ''}`;
   }
   return `
-  <div class="backlink screen-only" onclick="state.screen=state.detailFrom||'history';render();">‹ Back to ${state.detailFrom==='openitems' ? 'Open Items' : 'history'}</div>
+  <div class="backlink screen-only" onclick="state.screen=state.detailFrom||'history';render();">‹ Back to ${state.detailFrom==='openitems' ? 'Open Items' : state.detailFrom==='training' ? 'Training Records' : 'history'}</div>
   <div class="card ${i.template==='orientation' ? 'screen-only' : ''}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
