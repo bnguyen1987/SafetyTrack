@@ -2520,6 +2520,7 @@ const ZONE_UI = {
     couldNotReadPhoto: 'Could not read that photo',
     stillUploading: 'A photo is still uploading — please wait a moment',
     pleaseSelectResult: 'Please select an overall result',
+    pleaseEnterFullName: 'Please enter the inspector\'s first and last name',
     savingText: 'Saving...', submittedText: 'Checklist submitted ✓'
   },
   es: {
@@ -2540,6 +2541,7 @@ const ZONE_UI = {
     couldNotReadPhoto: 'No se pudo leer esa foto',
     stillUploading: 'Una foto todavía se está subiendo — espere un momento',
     pleaseSelectResult: 'Por favor seleccione un resultado general',
+    pleaseEnterFullName: 'Por favor ingrese el nombre y apellido del inspector',
     savingText: 'Guardando...', submittedText: 'Lista de verificación enviada ✓'
   }
 };
@@ -2558,6 +2560,7 @@ const MACHINE_UI = {
     supervisorSignature: 'Supervisor Signature (Optional)',
     date: 'Date',
     pleaseEnterName: 'Please enter the employee name',
+    pleaseEnterFullName: 'Please enter the employee\'s first and last name',
     pleaseSign: 'Please have the employee sign to acknowledge',
     savingText: 'Saving...', submittedText: 'Checklist submitted ✓'
   },
@@ -2574,6 +2577,7 @@ const MACHINE_UI = {
     supervisorSignature: 'Firma del Supervisor (Opcional)',
     date: 'Fecha',
     pleaseEnterName: 'Por favor ingrese el nombre del empleado',
+    pleaseEnterFullName: 'Por favor ingrese el nombre y apellido del empleado',
     pleaseSign: 'Por favor pida al empleado que firme para confirmar',
     savingText: 'Guardando...', submittedText: 'Lista de verificación enviada ✓'
   }
@@ -2587,6 +2591,7 @@ const ORIENTATION_UI = {
     clearSignature: 'Clear Signature',
     trainerSignature: 'Trainer Signature (Optional)',
     pleaseEnterName: 'Please enter the employee name',
+    pleaseEnterFullName: 'Please enter the employee\'s first and last name',
     pleaseSign: 'Please have the employee sign to acknowledge',
     savingText: 'Saving...', submittedText: 'Orientation submitted ✓',
     topicsReviewed: 'Topics Reviewed'
@@ -2599,6 +2604,7 @@ const ORIENTATION_UI = {
     clearSignature: 'Borrar Firma',
     trainerSignature: 'Firma del Capacitador (Opcional)',
     pleaseEnterName: 'Por favor ingrese el nombre del empleado',
+    pleaseEnterFullName: 'Por favor ingrese el nombre y apellido del empleado',
     pleaseSign: 'Por favor pida al empleado que firme para confirmar',
     savingText: 'Guardando...', submittedText: 'Orientación enviada ✓',
     topicsReviewed: 'Temas Revisados'
@@ -2616,6 +2622,7 @@ const REPORT_UI = {
     photoSectionTitle: 'Photos (Optional)',
     addPhoto: '📷 Add Photo',
     pleaseEnterName: 'Please enter your name',
+    pleaseEnterFullName: 'Please enter your first and last name',
     pleaseEnterDesc: 'Please describe what you saw',
     savingText: 'Saving...', submittedText: 'Report submitted ✓',
     upTo3Photos: 'Up to 3 photos', couldNotReadPhoto: 'Could not read that photo'
@@ -2630,6 +2637,7 @@ const REPORT_UI = {
     photoSectionTitle: 'Fotos (Opcional)',
     addPhoto: '📷 Agregar Foto',
     pleaseEnterName: 'Por favor ingrese su nombre',
+    pleaseEnterFullName: 'Por favor ingrese su nombre y apellido',
     pleaseEnterDesc: 'Por favor describa lo que vio',
     savingText: 'Guardando...', submittedText: 'Reporte enviado ✓',
     upTo3Photos: 'Máximo 3 fotos', couldNotReadPhoto: 'No se pudo leer esa foto'
@@ -2687,6 +2695,10 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function isFullName(s){
+  const parts = String(s||'').trim().split(/\s+/).filter(p => /[a-zA-Z]/.test(p));
+  return parts.length >= 2;
+}
 function todayStr(){ const d = new Date(); return d.toISOString().slice(0,10); }
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -2844,7 +2856,7 @@ function loginHtml(){
     <div class="logo">GW</div>
     <h2 style="margin:0 0 6px;">${qrForm ? esc(qrForm.title) : 'Welcome to SafetyTrack'}</h2>
     <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">${qrForm ? 'Enter your name to start this checklist.' : 'Enter your name and pick your location to start filling out safety checklists.'}</p>
-    <input type="text" id="nameInput" placeholder="Your full name" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
+    <input type="text" id="nameInput" placeholder="First and Last Name" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
     ${locKnown ? `
       <p style="font-size:13px;color:var(--text-mute);margin-bottom:12px;">📍 ${esc(state.location)}</p>
     ` : `
@@ -2881,6 +2893,7 @@ function submitName(){
   const locInput = document.getElementById('locationInput');
   const loc = locInput ? locInput.value : state.location;
   if (!v) { showToast('Please enter your name'); return; }
+  if (!isFullName(v)) { showToast('Please enter your first and last name'); return; }
   if (!loc) { showToast('Please select your location'); return; }
   state.employeeName = v;
   state.location = loc;
@@ -3182,7 +3195,7 @@ function reportFormHtml(f){
   <div class="card">
     <p style="font-size:13.5px;color:var(--text-mute);margin-top:0;">${esc(t.intro)}</p>
     <div class="fieldrow">
-      <div><label>${esc(t.reporterName)}</label><input type="text" value="${esc(d.reporterName)}" oninput="setReportField('reporterName', this.value)"></div>
+      <div><label>${esc(t.reporterName)}</label><input type="text" value="${esc(d.reporterName)}" placeholder="${lang==='es'?'Nombre y Apellido':'First and Last Name'}" oninput="setReportField('reporterName', this.value)"></div>
       <div><label>${esc(t.areaLabel)}</label><input type="text" value="${esc(d.area)}" placeholder="${esc(t.areaPlaceholder)}" oninput="setReportField('area', this.value)"></div>
     </div>
     <label>${esc(t.descLabel)}</label>
@@ -3278,7 +3291,7 @@ function orientationFormHtml(f){
   <div class="card">
     <p style="font-size:13.5px;color:var(--text-mute);margin-top:0;">${esc(intro)}</p>
     <div class="fieldrow">
-      <div><label>${t.employeeName}</label><input type="text" value="${esc(d.employeeName)}" oninput="setOrientationField('employeeName', this.value)"></div>
+      <div><label>${t.employeeName}</label><input type="text" value="${esc(d.employeeName)}" placeholder="${lang==='es'?'Nombre y Apellido':'First and Last Name'}" oninput="setOrientationField('employeeName', this.value)"></div>
       <div><label>${t.trainedBy}</label><input type="text" value="${esc(d.trainedBy)}" oninput="setOrientationField('trainedBy', this.value)"></div>
     </div>
   </div>
@@ -3332,7 +3345,7 @@ function zoneEquipFormHtml(f){
   headerHtmlPart += `
   <div class="card">
     <div class="fieldrow">
-      <div><label>${t.inspectedBy}</label><input type="text" value="${esc(state.formData.inspectedBy)}" oninput="setTopField('inspectedBy', this.value)"></div>
+      <div><label>${t.inspectedBy}</label><input type="text" value="${esc(state.formData.inspectedBy)}" placeholder="${lang==='es'?'Nombre y Apellido':'First and Last Name'}" oninput="setTopField('inspectedBy', this.value)"></div>
       <div><label>${t.dateInspected}</label><input type="date" value="${esc(state.formData.dateInspected)}" oninput="setTopField('dateInspected', this.value)"></div>
     </div>`;
   if (f.headerFields) {
@@ -3374,7 +3387,7 @@ function ladderFormHtml(f){
   return `
   <div class="card">
     <div class="fieldrow">
-      <div><label>Inspected By</label><input type="text" value="${esc(state.formData.inspectedBy)}" oninput="setTopField('inspectedBy', this.value)"></div>
+      <div><label>Inspected By</label><input type="text" value="${esc(state.formData.inspectedBy)}" placeholder="First and Last Name" oninput="setTopField('inspectedBy', this.value)"></div>
       <div><label>Date Inspected</label><input type="date" value="${esc(state.formData.dateInspected)}" oninput="setTopField('dateInspected', this.value)"></div>
     </div>
     <div class="fieldrow">
@@ -3400,7 +3413,7 @@ function machineFormHtml(f){
   </div>
   <div class="card">
     <div class="fieldrow">
-      <div><label>${t.employeeName}</label><input type="text" value="${esc(d.employeeName)}" oninput="setMachineField('employeeName', this.value)"></div>
+      <div><label>${t.employeeName}</label><input type="text" value="${esc(d.employeeName)}" placeholder="${lang==='es'?'Nombre y Apellido':'First and Last Name'}" oninput="setMachineField('employeeName', this.value)"></div>
       <div><label>${t.shift}</label><select onchange="setMachineField('shift', this.value)">
         <option value="">${t.selectEllipsis}</option>
         <option value="1st" ${d.shift==='1st'?'selected':''}>${t.shift1}</option>
@@ -3553,16 +3566,21 @@ async function submitForm(){
   if (f.template === 'machine') {
     const t = MACHINE_UI[d.lang || 'en'];
     if (!d.employeeName || !d.employeeName.trim()) { showToast(t.pleaseEnterName); return; }
+    if (!isFullName(d.employeeName)) { showToast(t.pleaseEnterFullName); return; }
     if (!d.employeeSignatureDataUrl) { showToast(t.pleaseSign); return; }
   } else if (f.template === 'orientation') {
     if (!d.employeeName || !d.employeeName.trim()) { showToast(ot.pleaseEnterName); return; }
+    if (!isFullName(d.employeeName)) { showToast(ot.pleaseEnterFullName); return; }
     if (!d.employeeSignatureDataUrl) { showToast(ot.pleaseSign); return; }
   } else if (f.template === 'report') {
     if (!d.reporterName || !d.reporterName.trim()) { showToast(rt.pleaseEnterName); return; }
+    if (!isFullName(d.reporterName)) { showToast(rt.pleaseEnterFullName); return; }
     if (!d.description || !d.description.trim()) { showToast(rt.pleaseEnterDesc); return; }
     const stillUploading = (d.photos || []).some(p => p.uploading);
     if (stillUploading) { showToast(zt.stillUploading); return; }
   } else {
+    if (!d.inspectedBy || !d.inspectedBy.trim()) { showToast(zt.pleaseEnterFullName); return; }
+    if (!isFullName(d.inspectedBy)) { showToast(zt.pleaseEnterFullName); return; }
     if (!d.overallResult) { showToast(zt.pleaseSelectResult); return; }
     const stillUploading = Object.values(d.items || {}).some(r => (r.photos||[]).some(p => p.uploading));
     if (stillUploading) { showToast(zt.stillUploading); return; }
