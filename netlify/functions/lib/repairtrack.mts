@@ -36,6 +36,26 @@ const MACHINE_NAME_TO_ID: Record<string, string> = {
   "Facility / General": "M-033"
 };
 
+// Short, consistent area name shown at the front of every issue description —
+// this matters most for forms that all file under the shared "Facility / General"
+// machine, since that's otherwise the only way to tell them apart on the board.
+const AREA_LABEL: Record<string, string> = {
+  "corrugated-warehouse": "Warehouse",
+  "office": "Office",
+  "yard": "Yard",
+  "fire-extinguisher": "Fire Extinguisher",
+  "design": "Design",
+  "maintenance": "Maintenance",
+  "receiving": "Receiving",
+  "shipping": "Shipping",
+  "ladder": "Ladder",
+  "daily-forklift": "Forklift",
+  "report-issue": "Hazard Report"
+};
+function areaLabelFor(submission: any): string {
+  return AREA_LABEL[submission.formId] || submission.formTitle || "SafetyTrack";
+}
+
 function resolveMachineName(submission: any): string | null {
   const formId = submission.formId;
   if (formId === "daily-forklift") {
@@ -111,10 +131,11 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
 
     if (submission.template === "report") {
       const photos = await photosToDataUrls(data.photos);
+      const area = areaLabelFor(submission);
       issues.push({
         machineId,
         location,
-        description: `[SafetyTrack hazard report${data.area ? " — " + data.area : ""}] ${data.description || ""}`.trim(),
+        description: `[SafetyTrack · ${area}]${data.area ? " " + data.area + ":" : ""} ${data.description || ""}`.trim(),
         originalText: null,
         priority: "medium",
         reporter,
@@ -125,6 +146,7 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
       });
     } else if (data.items) {
       const priority = priorityFor(data.overallResult);
+      const area = areaLabelFor(submission);
       for (const [key, rec] of Object.entries<any>(data.items)) {
         if (!rec || rec.status !== "ATTN") continue;
         const [sectionTitle, itemLabel] = key.split("||");
@@ -135,7 +157,7 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
         issues.push({
           machineId,
           location,
-          description: `[SafetyTrack: ${submission.formTitle}] ${where}${rec.comment ? ": " + rec.comment : ""}`,
+          description: `[SafetyTrack · ${area}] ${where}${rec.comment ? ": " + rec.comment : ""}`,
           originalText: null,
           priority,
           reporter,
