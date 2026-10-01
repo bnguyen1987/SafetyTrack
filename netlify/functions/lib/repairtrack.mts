@@ -127,12 +127,15 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
       const priority = priorityFor(data.overallResult);
       for (const [key, rec] of Object.entries<any>(data.items)) {
         if (!rec || rec.status !== "ATTN") continue;
-        const itemLabel = key.split("||")[1] || key;
+        const [sectionTitle, itemLabel] = key.split("||");
+        const where = sectionTitle && itemLabel && sectionTitle !== itemLabel
+          ? `${sectionTitle} — ${itemLabel}`
+          : (itemLabel || sectionTitle || key);
         const photos = await photosToDataUrls(rec.photos);
         issues.push({
           machineId,
           location,
-          description: `[SafetyTrack: ${submission.formTitle}] ${itemLabel}${rec.comment ? " — " + rec.comment : ""}`,
+          description: `[SafetyTrack: ${submission.formTitle}] ${where}${rec.comment ? ": " + rec.comment : ""}`,
           originalText: null,
           priority,
           reporter,
