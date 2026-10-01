@@ -59,10 +59,38 @@ upload, then stored via `netlify/functions/photos.mts` in a separate Netlify
 Blobs store (`safety-inspection-photos`), keyed by a generated id. The
 History detail view fetches them back at `/api/photos/{key}`.
 
+## Supervisor contact page (NFC stickers / QR codes)
+
+`public/contact.html` is a standalone, public page — no login, not part of
+the main app's single-page shell — meant to be opened by tapping an NFC
+sticker or scanning a QR code posted on the plant floor. Address:
+`/contact.html?loc=Ontario` (or any other configured location).
+
+- Shows the supervisor(s) on shift right now (based on the current day/time
+  against each shift's configured days and hours) with one-tap Call and Text
+  buttons, falls back to the after-hours contact when no shift is running,
+  and always shows a 911 button.
+- Bilingual (EN/ES toggle), and caches the last-loaded contact list to
+  `localStorage` so it still shows numbers with no signal.
+- Backed by `netlify/functions/contacts.mts` — `GET /api/contacts?loc=X`
+  reads a location's contact list, `PUT` saves it (stored via Netlify Blobs,
+  store name `safety-contacts`); saving requires `requester=Brian Nguyen`
+  (same name-based trust model as deleting submissions below).
+
+Shift times, supervisors, and other contacts (name, role, cell, after-hours
+flag) are all edited from the in-app **Settings** tab, visible only when
+logged in as "Brian Nguyen". Settings also shows the sticker link (with
+Copy/Open buttons and a QR code) and a "Print Labels" button that prints six
+bilingual "Tap or scan for your supervisor" labels to cut out and post next
+to each sticker.
+
 ## Known v1 limitations
 
-- No login/roles — anyone can submit under any typed name.
+- No real login/roles — anyone can submit under any typed name; the handful
+  of admin actions (deleting a submission, editing Settings) are gated only
+  by typing the exact name "Brian Nguyen", enforced both client- and
+  server-side but not a substitute for real authentication.
 - The monthly re-acknowledgment tracking grid from the original paper forms
-  isn't automated; submissions just log a date, so overdue sign-offs need to
-  be checked manually in History.
-- No delete/edit of submitted records from the UI yet.
+  isn't automated; the home screen flags Monthly Machine Safety Checklists
+  and the Fire Extinguisher Inspection as overdue after 30 days with no new
+  submission, but there's no automated reminder/notification beyond that.

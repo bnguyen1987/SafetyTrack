@@ -2529,6 +2529,12 @@ var qrcode = function() {
   .cert-sigbox img{max-width:100%;max-height:60px;display:block;margin:0 auto 4px;}
   .cert-sigtext{font-family:'Brush Script MT',cursive;font-size:20px;min-height:40px;display:flex;align-items:flex-end;justify-content:center;}
   .cert-sigline{border-top:1px solid #333;padding-top:4px;font-size:11px;color:var(--text-mute);}
+  .settingsrow{padding:4px 0;}
+  .settingsrow label{display:block;font-size:11.5px;font-weight:700;color:var(--text-mute);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+  .labelgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  .labelcard{border:1px dashed #999;border-radius:10px;padding:16px;display:flex;flex-direction:column;align-items:center;text-align:center;break-inside:avoid;}
+  .labeltext{margin-top:10px;font-size:13px;font-weight:700;}
+  .labeltext-es{font-weight:500;font-style:italic;color:var(--text-mute);margin-top:2px;}
   </style>
 </head>
 <body>
@@ -2714,6 +2720,9 @@ const state = {
   historyExpandedGroups: {},
   trainingSearch: '',
   trainingExpanded: {},
+  settingsDraft: null,
+  settingsLoading: false,
+  settingsSaving: false,
   openItemsFilterLocation: null,
   historySearch: '',
   detailItem: null,
@@ -2865,6 +2874,7 @@ function headerHtml(){
       <button class="${isActive('history')}" onclick="goHistory()">History</button>
       <button class="${isActive('qrcodes')}" onclick="goQrCodes()">QR Codes</button>
       <button class="${isActive('training')}" onclick="goTraining()">Training</button>
+      ${isAdmin() ? `<button class="${isActive('settings')}" onclick="goSettings()">Settings</button>` : ''}
     </nav>
     <div class="navbtns">
       ${who ? `<span class="whoami">${who}</span>` : ''}
@@ -2891,6 +2901,7 @@ function screenHtml(){
   if (state.screen === 'openitems') return openItemsHtml();
   if (state.screen === 'qrcodes') return qrCodesHtml();
   if (state.screen === 'training') return trainingRecordsHtml();
+  if (state.screen === 'settings') return settingsHtml();
   return homeHtml();
 }
 
@@ -4017,6 +4028,221 @@ function trainingRowHtml(r){
   </div>`;
 }
 
+// ---------- settings (supervisor contact page admin) ----------
+const DAY_LABELS = [
+  {n:0, label:'Sun'}, {n:1, label:'Mon'}, {n:2, label:'Tue'}, {n:3, label:'Wed'},
+  {n:4, label:'Thu'}, {n:5, label:'Fri'}, {n:6, label:'Sat'}
+];
+
+function goSettings(){
+  if (!isAdmin()) return;
+  state.screen = 'settings';
+  render();
+  loadSettingsData();
+}
+
+async function loadSettingsData(){
+  state.settingsLoading = true;
+  render();
+  try {
+    const res = await fetch(`/api/contacts?loc=${encodeURIComponent(state.location)}`);
+    const data = await res.json();
+    state.settingsDraft = {
+      shifts: data.shifts || [],
+      supervisors: data.supervisors || [],
+      otherContacts: data.otherContacts || []
+    };
+  } catch (e) {
+    console.error(e);
+    state.settingsDraft = { shifts: [], supervisors: [], otherContacts: [] };
+    showToast('Could not load saved contacts — starting blank');
+  }
+  state.settingsLoading = false;
+  render();
+}
+
+async function saveSettings(){
+  if (!isAdmin() || !state.settingsDraft) return;
+  state.settingsSaving = true;
+  render();
+  try {
+    const res = await fetch(`/api/contacts?loc=${encodeURIComponent(state.location)}&requester=${encodeURIComponent(state.employeeName)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.settingsDraft)
+    });
+    if (!res.ok) throw new Error('Save failed: ' + res.status);
+    showToast('Contacts saved');
+  } catch (e) {
+    console.error(e);
+    showToast('Save failed — check connection and try again');
+  }
+  state.settingsSaving = false;
+  render();
+}
+
+function setShiftField(idx, key, val){ state.settingsDraft.shifts[idx][key] = val; }
+function setShiftDay(idx, day, checked){
+  const days = state.settingsDraft.shifts[idx].days || (state.settingsDraft.shifts[idx].days = []);
+  const i = days.indexOf(day);
+  if (checked && i === -1) days.push(day);
+  if (!checked && i !== -1) days.splice(i, 1);
+}
+function addShift(){
+  state.settingsDraft.shifts.push({ id: 'shift' + Date.now(), name: '', nameEs: '', start: '06:00', end: '14:00', days: [1,2,3,4,5] });
+  render();
+}
+function removeShift(idx){ state.settingsDraft.shifts.splice(idx, 1); render(); }
+
+function setSupervisorField(idx, key, val){ state.settingsDraft.supervisors[idx][key] = val; }
+function addSupervisor(){
+  state.settingsDraft.supervisors.push({ name: '', shiftId: (state.settingsDraft.shifts[0]||{}).id || '', cell: '' });
+  render();
+}
+function removeSupervisor(idx){ state.settingsDraft.supervisors.splice(idx, 1); render(); }
+
+function setContactField(idx, key, val){ state.settingsDraft.otherContacts[idx][key] = val; }
+function toggleContactAfterHours(idx, checked){ state.settingsDraft.otherContacts[idx].afterHours = checked; }
+function addContact(){
+  state.settingsDraft.otherContacts.push({ name: '', roleEn: '', roleEs: '', cell: '', afterHours: false });
+  render();
+}
+function removeContact(idx){ state.settingsDraft.otherContacts.splice(idx, 1); render(); }
+
+function stickerLink(){
+  return `${location.origin}/contact.html?loc=${encodeURIComponent(state.location)}`;
+}
+function copyStickerLink(){
+  const link = stickerLink();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(() => showToast('Link copied')).catch(() => showToast(link));
+  } else {
+    showToast(link);
+  }
+}
+
+function settingsHtml(){
+  if (!isAdmin()) return '<div class="empty">Not authorized.</div>';
+  if (state.settingsLoading || !state.settingsDraft) {
+    return `<div class="hero"><h1>Settings</h1><p>Manage the supervisor contact page.</p></div><div class="empty">Loading...</div>`;
+  }
+  const d = state.settingsDraft;
+  const link = stickerLink();
+
+  return `
+  <div class="screen-only">
+  <div class="hero">
+    <h1>Settings</h1>
+    <p>Manage the supervisor contact page employees reach by tapping an NFC sticker or scanning a QR code — no login needed on their end.</p>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Shifts</div>
+    ${d.shifts.map((s, i) => `
+      <div class="settingsrow">
+        <div class="fieldrow">
+          <div><label>Shift Name (English)</label><input type="text" value="${esc(s.name)}" oninput="setShiftField(${i},'name',this.value)" placeholder="1st Shift"></div>
+          <div><label>Shift Name (Spanish)</label><input type="text" value="${esc(s.nameEs||'')}" oninput="setShiftField(${i},'nameEs',this.value)" placeholder="Spanish name (optional)"></div>
+        </div>
+        <div class="fieldrow">
+          <div><label>Start Time</label><input type="time" value="${esc(s.start)}" oninput="setShiftField(${i},'start',this.value)"></div>
+          <div><label>End Time</label><input type="time" value="${esc(s.end)}" oninput="setShiftField(${i},'end',this.value)"></div>
+        </div>
+        <div style="margin:8px 0;">
+          <label style="display:block;margin-bottom:6px;">Days</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            ${DAY_LABELS.map(dl => `
+              <label style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:400;">
+                <input type="checkbox" ${(s.days||[]).includes(dl.n)?'checked':''} onchange="setShiftDay(${i},${dl.n},this.checked)"> ${dl.label}
+              </label>`).join('')}
+          </div>
+        </div>
+        <button type="button" class="btn ghost" style="color:var(--urgent);border-color:var(--urgent);" onclick="removeShift(${i})">Remove Shift</button>
+      </div>
+    `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
+    ${d.shifts.length === 0 ? '<div class="empty">No shifts yet.</div>' : ''}
+    <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addShift()">+ Add Shift</button>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Supervisors</div>
+    ${d.supervisors.map((s, i) => `
+      <div class="settingsrow">
+        <div class="fieldrow">
+          <div><label>Name</label><input type="text" value="${esc(s.name)}" oninput="setSupervisorField(${i},'name',this.value)" placeholder="First and Last Name"></div>
+          <div><label>Shift</label>
+            <select onchange="setSupervisorField(${i},'shiftId',this.value)">
+              <option value="">— Select —</option>
+              ${d.shifts.map(sh => `<option value="${esc(sh.id)}" ${s.shiftId===sh.id?'selected':''}>${esc(sh.name||'(unnamed shift)')}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="fieldrow">
+          <div><label>Cell Phone</label><input type="tel" value="${esc(s.cell)}" oninput="setSupervisorField(${i},'cell',this.value)" placeholder="(555) 555-5555"></div>
+          <div style="display:flex;align-items:flex-end;"><button type="button" class="btn ghost" style="color:var(--urgent);border-color:var(--urgent);width:100%;" onclick="removeSupervisor(${i})">Remove</button></div>
+        </div>
+      </div>
+    `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
+    ${d.supervisors.length === 0 ? '<div class="empty">No supervisors yet.</div>' : ''}
+    <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addSupervisor()">+ Add Supervisor</button>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Other Contacts</div>
+    ${d.otherContacts.map((c, i) => `
+      <div class="settingsrow">
+        <div class="fieldrow">
+          <div><label>Name</label><input type="text" value="${esc(c.name)}" oninput="setContactField(${i},'name',this.value)" placeholder="First and Last Name"></div>
+          <div><label>Cell Phone</label><input type="tel" value="${esc(c.cell)}" oninput="setContactField(${i},'cell',this.value)" placeholder="(555) 555-5555"></div>
+        </div>
+        <div class="fieldrow">
+          <div><label>Role (English)</label><input type="text" value="${esc(c.roleEn)}" oninput="setContactField(${i},'roleEn',this.value)" placeholder="Maintenance Manager"></div>
+          <div><label>Role (Spanish)</label><input type="text" value="${esc(c.roleEs)}" oninput="setContactField(${i},'roleEs',this.value)" placeholder="Gerente de Mantenimiento"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;">
+            <input type="checkbox" ${c.afterHours?'checked':''} onchange="toggleContactAfterHours(${i},this.checked)"> After-hours contact
+          </label>
+          <button type="button" class="btn ghost" style="color:var(--urgent);border-color:var(--urgent);" onclick="removeContact(${i})">Remove</button>
+        </div>
+      </div>
+    `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
+    ${d.otherContacts.length === 0 ? '<div class="empty">No other contacts yet.</div>' : ''}
+    <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addContact()">+ Add Contact</button>
+  </div>
+
+  <div class="card">
+    <button type="button" class="btn primary" style="width:100%;" onclick="saveSettings()" ${state.settingsSaving?'disabled':''}>${state.settingsSaving ? 'Saving...' : 'Save Contacts'}</button>
+  </div>
+
+  <div class="card">
+    <div class="sectiontitle" style="margin-top:0;">Sticker Link</div>
+    <p style="font-size:13px;color:var(--text-mute);margin-top:0;">This link never needs to change — program it once onto each NFC sticker, or use the QR code below.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+      <input type="text" readonly value="${esc(link)}" style="flex:1;min-width:220px;font-size:13px;" onclick="this.select()">
+      <button type="button" class="btn secondary" onclick="copyStickerLink()">Copy</button>
+      <a class="btn secondary" href="${esc(link)}" target="_blank" style="text-decoration:none;">Open</a>
+    </div>
+    <div class="qrcanvaswrap" style="margin-bottom:14px;"><img src="${qrDataUrl(link)}" width="160" height="160" alt="QR code for the sticker link"></div>
+    <button type="button" class="btn secondary" onclick="window.print()">Print Labels</button>
+  </div>
+  </div>
+
+  <div class="print-only">
+    <div class="labelgrid">
+      ${Array.from({length:6}).map(() => `
+        <div class="labelcard">
+          <img src="${qrDataUrl(link)}" width="110" height="110">
+          <div class="labeltext">
+            <div>Tap or scan for your supervisor</div>
+            <div class="labeltext-es">Toque o escanee para su supervisor</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
 function historyHtml(){
   const items = historyFilteredItems();
   const searching = !!state.historySearch;
@@ -4068,6 +4294,7 @@ function setHistSearch(v){ state.historySearch = v; render(); }
 function canDelete(){
   return state.employeeName && state.employeeName.trim().toLowerCase() === 'brian nguyen';
 }
+function isAdmin(){ return canDelete(); } // same identity check; clearer name for Settings-access use
 
 async function deleteSubmission(id, evt){
   if (evt) evt.stopPropagation();

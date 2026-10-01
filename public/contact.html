@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Supervisor Contacts — GWPG SafetyTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary: oklch(45% 0.12 170);
+    --primary-light: oklch(92% 0.03 170);
+    --primary-hover: oklch(38% 0.12 170);
+    --bg: oklch(97.5% 0.005 170);
+    --surface: oklch(99% 0.003 170);
+    --text: oklch(18% 0.01 170);
+    --text-secondary: oklch(45% 0.01 170);
+    --text-tertiary: oklch(62% 0.008 170);
+    --border: oklch(88% 0.01 170);
+    --border-light: oklch(93% 0.008 170);
+    --urgent: oklch(55% 0.2 25);
+    --urgent-bg: oklch(95% 0.03 25);
+    --resolved: oklch(50% 0.12 150);
+    --resolved-bg: oklch(95% 0.02 150);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);padding-bottom:40px;}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:10;}
+  header .brand{display:flex;align-items:center;gap:10px;}
+  header .logo{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  header .title{font-weight:700;font-size:16px;letter-spacing:-0.02em;}
+  header .loc{font-size:11.5px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
+  .langtoggle{display:flex;background:oklch(94% 0.005 170);padding:3px;border-radius:8px;}
+  .langtoggle button{background:transparent;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text-secondary);}
+  .langtoggle button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px oklch(0% 0 0 / 0.08);}
+  main{max-width:600px;margin:0 auto;padding:20px;}
+  .offlinenote{background:var(--urgent-bg);color:var(--urgent);font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;margin-bottom:16px;text-align:center;}
+  .emergencybtn{display:block;width:100%;background:var(--urgent);color:#fff;text-align:center;padding:16px;border-radius:12px;font-weight:800;font-size:17px;text-decoration:none;margin-bottom:20px;box-shadow:0 2px 8px oklch(55% 0.2 25 / 0.3);}
+  .sectiontitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);margin:22px 0 10px;}
+  .card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+  .card.featured{border:2px solid var(--resolved);background:var(--resolved-bg);}
+  .card.afterhours{border:2px solid var(--primary);background:var(--primary-light);}
+  .cardtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;}
+  .contactname{font-weight:700;font-size:16px;}
+  .contactrole{font-size:13px;color:var(--text-secondary);margin-bottom:10px;}
+  .onshiftbadge{background:var(--resolved);color:#fff;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap;}
+  .btnrow{display:flex;gap:8px;}
+  .btnrow a{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;}
+  .btnrow a.call{background:var(--primary);color:#fff;}
+  .btnrow a.text{background:var(--surface);color:var(--primary);border:1.5px solid var(--primary);}
+  .nonumber{font-size:13px;color:var(--text-tertiary);font-style:italic;}
+  .empty{text-align:center;color:var(--text-tertiary);padding:30px 10px;font-size:14px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+    <div>
+      <div class="title" id="pageTitle">Supervisor Contacts</div>
+      <div class="loc" id="locLabel"></div>
+    </div>
+  </div>
+  <div class="langtoggle">
+    <button type="button" id="btnEn" class="active" onclick="setLang('en')">EN</button>
+    <button type="button" id="btnEs" onclick="setLang('es')">ES</button>
+  </div>
+</header>
+<main id="main">
+  <div class="empty">Loading...</div>
+</main>
+
+<script>
+const UI = {
+  en: {
+    title: 'Supervisor Contacts',
+    emergency: '🚨 Emergency — Call 911',
+    onShiftNow: 'On Shift Now',
+    afterHours: 'After Hours',
+    afterHoursNote: 'No shift is currently running. Contact:',
+    allSupervisors: 'All Supervisors',
+    otherContacts: 'Other Contacts',
+    call: 'Call',
+    text: 'Text',
+    noNumber: 'No number on file',
+    offline: 'Showing saved contacts — no connection',
+    loading: 'Loading...',
+    noContacts: 'No contacts set up for this location yet.'
+  },
+  es: {
+    title: 'Contactos de Supervisores',
+    emergency: '🚨 Emergencia — Llame al 911',
+    onShiftNow: 'En Turno Ahora',
+    afterHours: 'Fuera de Horario',
+    afterHoursNote: 'No hay turno activo en este momento. Contacte a:',
+    allSupervisors: 'Todos los Supervisores',
+    otherContacts: 'Otros Contactos',
+    call: 'Llamar',
+    text: 'Mensaje',
+    noNumber: 'Sin número registrado',
+    offline: 'Mostrando contactos guardados — sin conexión',
+    loading: 'Cargando...',
+    noContacts: 'Aún no hay contactos configurados para esta ubicación.'
+  }
+};
+
+const params = new URLSearchParams(location.search);
+const loc = params.get('loc') || 'Ontario';
+let lang = localStorage.getItem('gwpg_contact_lang') || 'en';
+let data = null;
+let offline = false;
+
+document.getElementById('locLabel').textContent = loc;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function telHref(cell){ return 'tel:' + String(cell).replace(/[^0-9+]/g,''); }
+function smsHref(cell){ return 'sms:' + String(cell).replace(/[^0-9+]/g,''); }
+
+function getCurrentShift(shifts){
+  const now = new Date();
+  const day = now.getDay();
+  const hm = now.getHours()*60 + now.getMinutes();
+  for (const s of (shifts||[])) {
+    if (!s.days || !s.days.includes(day)) continue;
+    const [sh,sm] = s.start.split(':').map(Number);
+    const [eh,em] = s.end.split(':').map(Number);
+    const startM = sh*60+sm, endM = eh*60+em;
+    if (startM <= endM) { if (hm >= startM && hm < endM) return s; }
+    else { if (hm >= startM || hm < endM) return s; }
+  }
+  return null;
+}
+
+function contactCardHtml(name, role, cell, badge, cardClass){
+  const t = UI[lang];
+  return `
+  <div class="card ${cardClass||''}">
+    <div class="cardtop">
+      <div>
+        <div class="contactname">${esc(name)}</div>
+        ${role ? `<div class="contactrole">${esc(role)}</div>` : ''}
+      </div>
+      ${badge ? `<span class="onshiftbadge">${esc(badge)}</span>` : ''}
+    </div>
+    ${cell ? `
+    <div class="btnrow">
+      <a class="call" href="${telHref(cell)}">📞 ${t.call}</a>
+      <a class="text" href="${smsHref(cell)}">💬 ${t.text}</a>
+    </div>` : `<div class="nonumber">${t.noNumber}</div>`}
+  </div>`;
+}
+
+function render(){
+  const t = UI[lang];
+  document.getElementById('pageTitle').textContent = t.title;
+  document.getElementById('btnEn').classList.toggle('active', lang==='en');
+  document.getElementById('btnEs').classList.toggle('active', lang==='es');
+  const main = document.getElementById('main');
+
+  if (!data) { main.innerHTML = `<div class="empty">${t.loading}</div>`; return; }
+
+  const shifts = data.shifts || [];
+  const supervisors = data.supervisors || [];
+  const otherContacts = data.otherContacts || [];
+  const currentShift = getCurrentShift(shifts);
+  const afterHoursContact = otherContacts.find(c => c.afterHours);
+
+  let html = '';
+  if (offline) html += `<div class="offlinenote">${t.offline}</div>`;
+  html += `<a class="emergencybtn" href="tel:911">${t.emergency}</a>`;
+
+  if (supervisors.length === 0 && otherContacts.length === 0) {
+    html += `<div class="empty">${t.noContacts}</div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  if (currentShift) {
+    const onNow = supervisors.filter(s => s.shiftId === currentShift.id);
+    if (onNow.length) {
+      html += `<div class="sectiontitle">${t.onShiftNow} — ${esc(lang==='es' ? (currentShift.nameEs||currentShift.name) : currentShift.name)}</div>`;
+      onNow.forEach(s => { html += contactCardHtml(s.name, null, s.cell, t.onShiftNow, 'featured'); });
+    }
+  } else if (afterHoursContact) {
+    html += `<div class="sectiontitle">${t.afterHours}</div>`;
+    html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">${t.afterHoursNote}</div>`;
+    html += contactCardHtml(afterHoursContact.name, lang==='es' ? afterHoursContact.roleEs : afterHoursContact.roleEn, afterHoursContact.cell, t.afterHours, 'afterhours');
+  }
+
+  if (supervisors.length) {
+    html += `<div class="sectiontitle">${t.allSupervisors}</div>`;
+    supervisors.forEach(s => {
+      const shift = shifts.find(sh => sh.id === s.shiftId);
+      const role = shift ? (lang==='es' ? (shift.nameEs||shift.name) : shift.name) : '';
+      const isOnNow = currentShift && s.shiftId === currentShift.id;
+      if (!isOnNow) html += contactCardHtml(s.name, role, s.cell, null, '');
+    });
+  }
+
+  if (otherContacts.length) {
+    html += `<div class="sectiontitle">${t.otherContacts}</div>`;
+    otherContacts.forEach(c => {
+      if (afterHoursContact && c === afterHoursContact && !currentShift) return; // already shown above
+      html += contactCardHtml(c.name, lang==='es' ? c.roleEs : c.roleEn, c.cell, c.afterHours ? t.afterHours : null, '');
+    });
+  }
+
+  main.innerHTML = html;
+}
+
+function setLang(l){ lang = l; localStorage.setItem('gwpg_contact_lang', l); render(); }
+
+const cacheKey = 'gwpg_contact_cache_' + loc;
+async function load(){
+  try {
+    const res = await fetch('/api/contacts?loc=' + encodeURIComponent(loc));
+    if (!res.ok) throw new Error('fetch failed');
+    data = await res.json();
+    localStorage.setItem(cacheKey, JSON.stringify(data));
+    offline = false;
+  } catch (e) {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) { data = JSON.parse(cached); offline = true; }
+    else { data = { shifts: [], supervisors: [], otherContacts: [] }; offline = true; }
+  }
+  render();
+}
+
+render();
+load();
+// Keep the on-shift highlight current if someone leaves the page open across a shift change.
+setInterval(render, 60000);
+</script>
+</body>
+</html>

@@ -4,6 +4,31 @@ const path = require('path');
 
 let submissions = [];
 let photos = {}; // key -> { buffer, contentType }
+let contacts = {}; // location -> record
+
+const CONTACT_DEFAULTS = {
+  Ontario: {
+    location: 'Ontario',
+    shifts: [
+      { id: 'shift1', name: '1st Shift', start: '06:00', end: '14:30', days: [1,2,3,4,5] },
+      { id: 'shift2', name: '2nd Shift', start: '14:30', end: '23:00', days: [1,2,3,4,5] }
+    ],
+    supervisors: [
+      { name: 'Tony Sanchez', shiftId: 'shift1', cell: '' },
+      { name: 'Conrado Sotelo', shiftId: 'shift1', cell: '' },
+      { name: 'Miguel Villalvazo', shiftId: 'shift2', cell: '' }
+    ],
+    otherContacts: [
+      { name: 'Brian Nguyen', roleEn: 'Plant Manager', roleEs: 'Gerente de Planta', cell: '', afterHours: true },
+      { name: 'Israel Sanchez', roleEn: 'Production / Scheduling', roleEs: 'Producción / Programación', cell: '', afterHours: false },
+      { name: 'Jess Goodrich', roleEn: 'Maintenance Manager', roleEs: 'Gerente de Mantenimiento', cell: '', afterHours: false },
+      { name: 'Ramon Flores', roleEn: 'Shipping Manager', roleEs: 'Gerente de Envíos', cell: '', afterHours: false }
+    ]
+  }
+};
+function contactDefaultFor(loc) {
+  return CONTACT_DEFAULTS[loc] || { location: loc, shifts: [], supervisors: [], otherContacts: [] };
+}
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/api/photos')) {
@@ -62,6 +87,29 @@ const server = http.createServer((req, res) => {
       submissions = submissions.filter(r => r.id !== id);
       res.writeHead(200, {'content-type':'application/json'});
       res.end(JSON.stringify({ deleted: id }));
+      return;
+    }
+  }
+  if (req.url.startsWith('/api/contacts')) {
+    const url = new URL(req.url, 'http://x');
+    const loc = url.searchParams.get('loc') || 'Ontario';
+    if (req.method === 'GET') {
+      res.writeHead(200, {'content-type':'application/json'});
+      res.end(JSON.stringify(contacts[loc] || contactDefaultFor(loc)));
+      return;
+    }
+    if (req.method === 'PUT') {
+      const requester = (url.searchParams.get('requester') || '').trim().toLowerCase();
+      if (requester !== 'brian nguyen') { res.writeHead(403, {'content-type':'application/json'}); res.end(JSON.stringify({error:'Not authorized to save'})); return; }
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', () => {
+        const payload = JSON.parse(body);
+        const record = { ...payload, location: loc, updatedAt: new Date().toISOString() };
+        contacts[loc] = record;
+        res.writeHead(200, {'content-type':'application/json'});
+        res.end(JSON.stringify(record));
+      });
       return;
     }
   }
