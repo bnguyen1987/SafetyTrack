@@ -2849,7 +2849,7 @@ function headerHtml(){
   <header class="appbar">
     <div class="headerinner">
     <div class="brand" onclick="goHome()">
-      <div class="logo">GW</div>
+      <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
       <div class="title">SafetyTrack</div>
       <span class="livebadge"><span class="dot"></span>Live</span>
     </div>
@@ -2899,7 +2899,7 @@ function loginHtml(){
   const locKnown = qrForm && state.location;
   return `
   <div class="loginwrap">
-    <div class="logo">GW</div>
+    <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
     <h2 style="margin:0 0 6px;">${qrForm ? esc(qrForm.title) : 'Welcome to SafetyTrack'}</h2>
     <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">${qrForm ? 'Enter your name to start this checklist.' : 'Enter your name and pick your location to start filling out safety checklists.'}</p>
     <input type="text" id="nameInput" placeholder="First and Last Name" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
@@ -3058,8 +3058,8 @@ function homeHtml(){
 
   return `
   <div class="hero">
-    <h1>Safety Checklists</h1>
-    <p>${esc(state.location)} &middot; Select a checklist below to complete it. Your submission is saved automatically.</p>
+    <h1>Safety Checklists - ${esc(state.location)}</h1>
+    <p>Select a checklist below to complete it. Your submission is saved automatically.</p>
   </div>
   <input class="searchbox" id="searchInput" placeholder="Search checklists..." value="${esc(state.search)}" />
   ${groupsHtml}
