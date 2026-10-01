@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>GWPG SafetyTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
 /* qrcode-generator v2.0.4 (MIT) — inlined so QR codes work with no external network dependency */
 //---------------------------------------------------------------------
@@ -2307,46 +2310,81 @@ var qrcode = function() {
 </script>
 <style>
   :root{
-    --teal:#0E6654;
-    --teal-dark:#0A4E40;
-    --teal-light:#E6F2EF;
-    --red:#C0392B;
-    --red-light:#FDECEA;
-    --amber:#B7791F;
-    --amber-light:#FEF6E7;
-    --green:#1E8E5A;
-    --green-light:#EAF7EF;
-    --gray-bg:#F4F6F5;
-    --border:#DCE3E0;
-    --text:#1F2A26;
-    --text-mute:#5C6B65;
+    /* RepairTrack-matched palette */
+    --primary: oklch(45% 0.12 170);
+    --primary-light: oklch(92% 0.03 170);
+    --primary-hover: oklch(38% 0.12 170);
+    --bg: oklch(97.5% 0.005 170);
+    --surface: oklch(99% 0.003 170);
+    --text: oklch(18% 0.01 170);
+    --text-secondary: oklch(45% 0.01 170);
+    --text-tertiary: oklch(62% 0.008 170);
+    --border: oklch(88% 0.01 170);
+    --border-light: oklch(93% 0.008 170);
+    --urgent: oklch(55% 0.2 25);
+    --urgent-bg: oklch(95% 0.03 25);
+    --high: oklch(60% 0.16 55);
+    --high-bg: oklch(95% 0.03 55);
+    --medium: oklch(60% 0.14 85);
+    --medium-bg: oklch(95% 0.03 85);
+    --low: oklch(55% 0.1 170);
+    --low-bg: oklch(95% 0.02 170);
+    --resolved: oklch(50% 0.12 150);
+    --resolved-bg: oklch(95% 0.02 150);
+    --parts-color: oklch(50% 0.14 280);
+    --parts-bg: oklch(95% 0.03 280);
+    --ease-out-expo: cubic-bezier(0.16,1,0.3,1);
+    --radius: 10px;
+    --radius-sm: 6px;
+
+    /* Existing SafetyTrack variable names, remapped onto the palette above so
+       every rule elsewhere in this file picks up the new look automatically. */
+    --teal: var(--primary);
+    --teal-dark: var(--primary-hover);
+    --teal-light: var(--primary-light);
+    --red: var(--urgent);
+    --red-light: var(--urgent-bg);
+    --amber: var(--high);
+    --amber-light: var(--high-bg);
+    --green: var(--resolved);
+    --green-light: var(--resolved-bg);
+    --gray-bg: var(--bg);
+    --text-mute: var(--text-tertiary);
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--gray-bg);color:var(--text);}
-  header.appbar{background:var(--teal);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  header.appbar{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border);padding:14px 20px;position:sticky;top:0;z-index:50;box-shadow:none;}
+  header.appbar .headerinner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
   header.appbar .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-  header.appbar .brand .logo{width:34px;height:34px;border-radius:8px;background:#fff;color:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
-  header.appbar .brand .title{font-weight:700;font-size:17px;line-height:1.1;}
-  header.appbar .brand .subtitle{font-size:11px;opacity:.85;}
+  header.appbar .brand .logo{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;}
+  header.appbar .brand .title{font-weight:700;font-size:16px;line-height:1.2;letter-spacing:-0.02em;color:var(--text);}
+  header.appbar .brand .subtitle{font-size:11px;color:var(--text-tertiary);opacity:1;}
+  header.appbar .livebadge{font-size:11px;color:var(--resolved);font-weight:500;display:flex;align-items:center;gap:4px;margin-right:4px;}
+  header.appbar .livebadge .dot{width:6px;height:6px;border-radius:50%;background:var(--resolved);animation:pulse 2s infinite;}
   header.appbar .navbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;}
-  header.appbar button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;}
-  header.appbar button:hover{background:rgba(255,255,255,.28);}
-  header.appbar .whoami{font-size:12px;opacity:.9;margin-right:4px;white-space:nowrap;}
-  header.appbar .locpicker{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:7px 8px;border-radius:8px;font-size:12.5px;margin-right:2px;width:auto;}
-  .pendingbtn{background:var(--amber-light)!important;color:var(--amber)!important;border:1px solid var(--amber)!important;font-weight:700!important;animation:pulse 2s infinite;}
+  header.appbar .navtabs{display:flex;gap:3px;background:oklch(94% 0.005 170);padding:4px;border-radius:8px;}
+  header.appbar .navtabs button{background:transparent;border:none;color:var(--text-secondary);padding:7px 11px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 150ms var(--ease-out-expo);}
+  header.appbar .navtabs button:hover{color:var(--text);}
+  header.appbar .navtabs button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px oklch(0% 0 0 / 0.08);}
+  header.appbar button.plainbtn{font-size:12px;padding:6px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-weight:500;white-space:nowrap;}
+  header.appbar button.plainbtn:hover{border-color:var(--text-tertiary);color:var(--text);}
+  header.appbar .whoami{font-size:11.5px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-right:2px;white-space:nowrap;}
+  header.appbar .locpicker{border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius-sm);font-size:12.5px;margin-right:2px;width:auto;background:var(--surface);}
+  .pendingbtn{background:var(--high-bg)!important;color:var(--high)!important;border:1px solid var(--high)!important;font-weight:700!important;animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
   header.appbar .locpicker option{color:#1F2A26;}
   @media(max-width:640px){
     header.appbar{padding:10px 12px;}
     header.appbar .navbtns{width:100%;justify-content:flex-start;gap:6px;}
-    header.appbar button{padding:7px 10px;font-size:12.5px;}
+    header.appbar .navtabs{width:100%;justify-content:flex-start;overflow-x:auto;}
+    header.appbar .navtabs button,header.appbar .plainbtn{padding:7px 10px;font-size:12.5px;}
     header.appbar .whoami{width:100%;}
   }
-  main{max-width:900px;margin:0 auto;padding:16px;padding-bottom:80px;}
+  main{max-width:1200px;margin:0 auto;padding:24px;padding-bottom:80px;}
   .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
-  .hero{background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:#fff;border-radius:14px;padding:20px;margin-bottom:18px;}
-  .hero h1{margin:0 0 6px;font-size:20px;}
-  .hero p{margin:0;opacity:.9;font-size:14px;}
+  .hero{margin-bottom:24px;}
+  .hero h1{margin:0 0 6px;font-size:1.6rem;font-weight:700;letter-spacing:-0.03em;color:var(--text);}
+  .hero p{margin:0;color:var(--text-secondary);font-size:0.9rem;}
   .searchbox{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);font-size:15px;margin-bottom:14px;background:#fff;}
   .formlist{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
   .grouptitle{font-weight:700;font-size:14px;color:var(--teal-dark);margin:4px 0 10px;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:10px 4px;user-select:none;}
@@ -2804,27 +2842,33 @@ function headerHtml(){
   const who = state.employeeName ? esc(state.employeeName) : '';
   const loc = state.location;
   const pendingCount = getPendingQueue().length;
+  const isActive = (s) => state.screen === s ? 'active' : '';
   return `
   <header class="appbar">
+    <div class="headerinner">
     <div class="brand" onclick="goHome()">
       <div class="logo">GW</div>
-      <div>
-        <div class="title">SafetyTrack</div>
-        <div class="subtitle">GoldenWest Packaging Group</div>
-      </div>
+      <div class="title">SafetyTrack</div>
+      <span class="livebadge"><span class="dot"></span>Live</span>
     </div>
+    ${loc ? `<div style="display:flex;align-items:center;gap:8px;">
+      <span class="whoami" style="margin:0;">Location</span>
+      <select class="locpicker" onchange="changeLocation(this.value)" title="Location">
+        ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
+      </select>
+    </div>` : ''}
+    <nav class="navtabs">
+      <button class="${isActive('home')}" onclick="goHome()">Checklists</button>
+      <button class="${isActive('openitems')}" onclick="goOpenItems()">Open Items</button>
+      <button class="${isActive('history')}" onclick="goHistory()">History</button>
+      <button class="${isActive('qrcodes')}" onclick="goQrCodes()">QR Codes</button>
+      <button class="${isActive('training')}" onclick="goTraining()">Training</button>
+    </nav>
     <div class="navbtns">
-      ${who ? `<span class="whoami">👤 ${who}</span>` : ''}
-      ${pendingCount > 0 ? `<button class="pendingbtn" onclick="flushPendingQueue(true)" title="Tap to retry syncing now">⏳ ${pendingCount} pending</button>` : ''}
-      ${loc ? `<select class="locpicker" onchange="changeLocation(this.value)" title="Location">
-        ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>📍 ${esc(l)}</option>`).join('')}
-      </select>` : ''}
-      <button onclick="goHome()">Checklists</button>
-      <button onclick="goOpenItems()">⚠ Open Items</button>
-      <button onclick="goHistory()">History</button>
-      <button onclick="goQrCodes()">QR Codes</button>
-      <button onclick="goTraining()">🎓 Training</button>
-      ${who ? `<button onclick="changeName()">Logout</button>` : ''}
+      ${who ? `<span class="whoami">${who}</span>` : ''}
+      ${pendingCount > 0 ? `<button class="pendingbtn plainbtn" onclick="flushPendingQueue(true)" title="Tap to retry syncing now">⏳ ${pendingCount} pending</button>` : ''}
+      ${who ? `<button class="plainbtn" onclick="changeName()">Log Out</button>` : ''}
+    </div>
     </div>
   </header>`;
 }
@@ -3985,6 +4029,10 @@ function historyHtml(){
   });
 
   return `
+  <div class="hero">
+    <h1>History</h1>
+    <p>Every submitted checklist, grouped by type. ${items.length} submission${items.length===1?'':'s'} at ${esc(state.location)}.</p>
+  </div>
   <div class="filterbar">
     <select id="histLocationFilter" onchange="setHistLocationFilter(this.value)">
       <option value="all">All locations</option>
