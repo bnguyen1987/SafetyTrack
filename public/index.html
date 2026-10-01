@@ -2333,6 +2333,8 @@ var qrcode = function() {
   header.appbar button:hover{background:rgba(255,255,255,.28);}
   header.appbar .whoami{font-size:12px;opacity:.9;margin-right:4px;white-space:nowrap;}
   header.appbar .locpicker{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:7px 8px;border-radius:8px;font-size:12.5px;margin-right:2px;width:auto;}
+  .pendingbtn{background:var(--amber-light)!important;color:var(--amber)!important;border:1px solid var(--amber)!important;font-weight:700!important;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
   header.appbar .locpicker option{color:#1F2A26;}
   @media(max-width:640px){
     header.appbar{padding:10px 12px;}
@@ -2789,6 +2791,7 @@ function render(){
 function headerHtml(){
   const who = state.employeeName ? esc(state.employeeName) : '';
   const loc = state.location;
+  const pendingCount = getPendingQueue().length;
   return `
   <header class="appbar">
     <div class="brand" onclick="goHome()">
@@ -2800,6 +2803,7 @@ function headerHtml(){
     </div>
     <div class="navbtns">
       ${who ? `<span class="whoami">👤 ${who}</span>` : ''}
+      ${pendingCount > 0 ? `<button class="pendingbtn" onclick="flushPendingQueue(true)" title="Tap to retry syncing now">⏳ ${pendingCount} pending</button>` : ''}
       ${loc ? `<select class="locpicker" onchange="changeLocation(this.value)" title="Location">
         ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>📍 ${esc(l)}</option>`).join('')}
       </select>` : ''}
@@ -3600,11 +3604,23 @@ async function submitForm(){
                       : zt.submittedText;
   showToast(savingMsg);
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    let res;
+    try {
+      res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (networkErr) {
+      // genuine connectivity failure — queue locally and sync automatically later
+      queueSubmission(payload);
+      showToast(lang_queuedMessage(f));
+      state.activeFormId = null;
+      state.screen = 'home';
+      render();
+      state.saving = false;
+      return;
+    }
     if (!res.ok) throw new Error('Save failed: ' + res.status);
     showToast(submittedMsg);
     state.activeFormId = null;
@@ -3617,6 +3633,66 @@ async function submitForm(){
     showToast('Save failed — check connection and try again');
   }
   state.saving = false;
+}
+
+function lang_queuedMessage(f){
+  const lang = (f.template === 'zone' || f.template === 'equipment') ? zoneLang(f)
+             : (f.template === 'report') ? reportLang(f)
+             : (f.template === 'orientation') ? orientationLang(f)
+             : (f.template === 'machine') ? (state.formData.lang || 'en') : 'en';
+  return lang === 'es'
+    ? 'Sin conexión — guardado en este dispositivo, se enviará automáticamente'
+    : 'Offline — saved on this device, will sync automatically';
+}
+
+// ---------- offline queue ----------
+const PENDING_QUEUE_KEY = 'gwpg_st_pending_queue';
+function getPendingQueue(){
+  try { return JSON.parse(localStorage.getItem(PENDING_QUEUE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function setPendingQueue(arr){
+  localStorage.setItem(PENDING_QUEUE_KEY, JSON.stringify(arr));
+}
+function queueSubmission(payload){
+  const q = getPendingQueue();
+  q.push({ localId: 'pending-' + Date.now() + '-' + Math.random().toString(36).slice(2,8), payload });
+  setPendingQueue(q);
+}
+let flushingQueue = false;
+async function flushPendingQueue(manual){
+  if (flushingQueue) return 0;
+  const q = getPendingQueue();
+  if (q.length === 0) { if (manual) showToast('Nothing waiting to sync'); return 0; }
+  flushingQueue = true;
+  let synced = 0;
+  const remaining = [...q];
+  while (remaining.length > 0) {
+    const item = remaining[0];
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item.payload)
+      });
+      if (!res.ok) throw new Error('status ' + res.status);
+      remaining.shift();
+      synced++;
+      setPendingQueue(remaining); // persist progress after each success
+    } catch (e) {
+      break; // still offline (or server issue) — stop and retry later
+    }
+  }
+  flushingQueue = false;
+  if (synced > 0) {
+    state.historyLoaded = false;
+    if (state.employeeName) loadHistoryIfNeeded();
+    render();
+  }
+  if (manual) {
+    showToast(synced > 0 ? `Synced ${synced} submission${synced===1?'':'s'}` : 'Still offline — will keep retrying');
+  }
+  return synced;
 }
 
 // ---------- history ----------
@@ -4202,6 +4278,11 @@ if (state.pendingQrForm && state.employeeName && state.location) {
   render();
 }
 if (state.employeeName) loadHistoryIfNeeded();
+
+// ---------- offline queue: automatic retry triggers ----------
+if (navigator.onLine) flushPendingQueue(false);
+window.addEventListener('online', () => flushPendingQueue(false));
+setInterval(() => flushPendingQueue(false), 30000);
 </script>
 
 
