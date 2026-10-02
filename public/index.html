@@ -2700,6 +2700,7 @@ const RESULT_OPTIONS = [
 ];
 
 const API_URL = '/api/submissions';
+const SETTINGS_PASSWORD = '727StWorth!';
 let apiReady = true; // API is same-origin once deployed on Netlify; no config needed
 
 const LOCATIONS = ['Ontario', 'City of Industry'];
@@ -2725,6 +2726,8 @@ const state = {
   settingsDraft: null,
   settingsLoading: false,
   settingsSaving: false,
+  settingsUnlocked: false,
+  settingsPasswordEntered: '',
   openItemsFilterLocation: null,
   historySearch: '',
   detailItem: null,
@@ -2945,6 +2948,8 @@ function changeName(){
   state.employeeName = '';
   state.location = '';
   state.screen = 'home';
+  state.settingsUnlocked = false;
+  state.settingsPasswordEntered = '';
   render();
 }
 function submitName(){
@@ -4040,7 +4045,21 @@ function goSettings(){
   if (!isAdmin()) return;
   state.screen = 'settings';
   render();
-  loadSettingsData();
+  if (state.settingsUnlocked) loadSettingsData();
+}
+
+function submitSettingsPassword(){
+  const input = document.getElementById('settingsPasswordInput');
+  const val = input ? input.value : '';
+  if (val === SETTINGS_PASSWORD) {
+    state.settingsUnlocked = true;
+    state.settingsPasswordEntered = val;
+    render();
+    loadSettingsData();
+  } else {
+    showToast('Incorrect password');
+    if (input) input.value = '';
+  }
 }
 
 async function loadSettingsData(){
@@ -4064,15 +4083,23 @@ async function loadSettingsData(){
 }
 
 async function saveSettings(){
-  if (!isAdmin() || !state.settingsDraft) return;
+  if (!isAdmin() || !state.settingsDraft || !state.settingsUnlocked) return;
   state.settingsSaving = true;
   render();
   try {
-    const res = await fetch(`/api/contacts?loc=${encodeURIComponent(state.location)}&requester=${encodeURIComponent(state.employeeName)}`, {
+    const res = await fetch(`/api/contacts?loc=${encodeURIComponent(state.location)}&requester=${encodeURIComponent(state.employeeName)}&password=${encodeURIComponent(state.settingsPasswordEntered)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state.settingsDraft)
     });
+    if (res.status === 403) {
+      state.settingsUnlocked = false;
+      state.settingsPasswordEntered = '';
+      showToast('Not authorized — please re-enter the password');
+      state.settingsSaving = false;
+      render();
+      return;
+    }
     if (!res.ok) throw new Error('Save failed: ' + res.status);
     showToast('Contacts saved');
   } catch (e) {
@@ -4125,6 +4152,15 @@ function copyStickerLink(){
 
 function settingsHtml(){
   if (!isAdmin()) return '<div class="empty">Not authorized.</div>';
+  if (!state.settingsUnlocked) {
+    return `
+    <div class="hero"><h1>Settings</h1><p>Enter the password to manage the supervisor contact page.</p></div>
+    <div class="card" style="max-width:360px;">
+      <label>Password</label>
+      <input type="password" id="settingsPasswordInput" placeholder="Password" autofocus onkeydown="if(event.key==='Enter') submitSettingsPassword()">
+      <button type="button" class="btn primary" style="width:100%;margin-top:12px;" onclick="submitSettingsPassword()">Unlock</button>
+    </div>`;
+  }
   if (state.settingsLoading || !state.settingsDraft) {
     return `<div class="hero"><h1>Settings</h1><p>Manage the supervisor contact page.</p></div><div class="empty">Loading...</div>`;
   }

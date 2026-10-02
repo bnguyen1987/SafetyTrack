@@ -100,7 +100,8 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === 'PUT') {
       const requester = (url.searchParams.get('requester') || '').trim().toLowerCase();
-      if (requester !== 'brian nguyen') { res.writeHead(403, {'content-type':'application/json'}); res.end(JSON.stringify({error:'Not authorized to save'})); return; }
+      const password = url.searchParams.get('password') || '';
+      if (requester !== 'brian nguyen' || password !== '727StWorth!') { res.writeHead(403, {'content-type':'application/json'}); res.end(JSON.stringify({error:'Not authorized to save'})); return; }
       let body = '';
       req.on('data', c => body += c);
       req.on('end', () => {

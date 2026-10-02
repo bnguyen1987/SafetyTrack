@@ -2,6 +2,7 @@ import type { Context, Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "safety-contacts";
+const SETTINGS_PASSWORD = "727StWorth!";
 
 const DEFAULTS: Record<string, any> = {
   Ontario: {
@@ -43,7 +44,8 @@ export default async (req: Request, context: Context) => {
 
   if (req.method === "PUT") {
     const requester = (url.searchParams.get("requester") || "").trim().toLowerCase();
-    if (requester !== "brian nguyen") {
+    const password = url.searchParams.get("password") || "";
+    if (requester !== "brian nguyen" || password !== SETTINGS_PASSWORD) {
       return new Response(JSON.stringify({ error: "Not authorized to save" }), {
         status: 403,
         headers: { "content-type": "application/json" }
