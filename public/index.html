@@ -4125,7 +4125,7 @@ function removeShift(idx){ state.settingsDraft.shifts.splice(idx, 1); render(); 
 
 function setSupervisorField(idx, key, val){ state.settingsDraft.supervisors[idx][key] = val; }
 function addSupervisor(){
-  state.settingsDraft.supervisors.push({ name: '', shiftId: (state.settingsDraft.shifts[0]||{}).id || '', cell: '' });
+  state.settingsDraft.supervisors.push({ name: '', shiftId: (state.settingsDraft.shifts[0]||{}).id || '', cell: '', email: '' });
   render();
 }
 function removeSupervisor(idx){ state.settingsDraft.supervisors.splice(idx, 1); render(); }
@@ -4133,7 +4133,7 @@ function removeSupervisor(idx){ state.settingsDraft.supervisors.splice(idx, 1); 
 function setContactField(idx, key, val){ state.settingsDraft.otherContacts[idx][key] = val; }
 function toggleContactAfterHours(idx, checked){ state.settingsDraft.otherContacts[idx].afterHours = checked; }
 function addContact(){
-  state.settingsDraft.otherContacts.push({ name: '', roleEn: '', roleEs: '', cell: '', afterHours: false });
+  state.settingsDraft.otherContacts.push({ name: '', roleEn: '', roleEs: '', cell: '', email: '', afterHours: false });
   render();
 }
 function removeContact(idx){ state.settingsDraft.otherContacts.splice(idx, 1); render(); }
@@ -4217,6 +4217,7 @@ function settingsHtml(){
         </div>
         <div class="fieldrow">
           <div><label>Cell Phone</label><input type="tel" value="${esc(s.cell)}" oninput="setSupervisorField(${i},'cell',this.value)" placeholder="(555) 555-5555"></div>
+          <div><label>Email</label><input type="email" value="${esc(s.email||'')}" oninput="setSupervisorField(${i},'email',this.value)" placeholder="name@company.com"></div>
           <div style="display:flex;align-items:flex-end;"><button type="button" class="btn ghost" style="color:var(--urgent);border-color:var(--urgent);width:100%;" onclick="removeSupervisor(${i})">Remove</button></div>
         </div>
       </div>
@@ -4232,6 +4233,7 @@ function settingsHtml(){
         <div class="fieldrow">
           <div><label>Name</label><input type="text" value="${esc(c.name)}" oninput="setContactField(${i},'name',this.value)" placeholder="First and Last Name"></div>
           <div><label>Cell Phone</label><input type="tel" value="${esc(c.cell)}" oninput="setContactField(${i},'cell',this.value)" placeholder="(555) 555-5555"></div>
+          <div><label>Email</label><input type="email" value="${esc(c.email||'')}" oninput="setContactField(${i},'email',this.value)" placeholder="name@company.com"></div>
         </div>
         <div class="fieldrow">
           <div><label>Role (English)</label><input type="text" value="${esc(c.roleEn)}" oninput="setContactField(${i},'roleEn',this.value)" placeholder="Maintenance Manager"></div>

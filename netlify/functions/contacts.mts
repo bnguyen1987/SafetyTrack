@@ -12,15 +12,15 @@ const DEFAULTS: Record<string, any> = {
       { id: "shift2", name: "2nd Shift", start: "14:30", end: "23:00", days: [1, 2, 3, 4, 5] }
     ],
     supervisors: [
-      { name: "Tony Sanchez", shiftId: "shift1", cell: "" },
-      { name: "Conrado Sotelo", shiftId: "shift1", cell: "" },
-      { name: "Miguel Villalvazo", shiftId: "shift2", cell: "" }
+      { name: "Tony Sanchez", shiftId: "shift1", cell: "", email: "" },
+      { name: "Conrado Sotelo", shiftId: "shift1", cell: "", email: "" },
+      { name: "Miguel Villalvazo", shiftId: "shift2", cell: "", email: "" }
     ],
     otherContacts: [
-      { name: "Brian Nguyen", roleEn: "Plant Manager", roleEs: "Gerente de Planta", cell: "", afterHours: true },
-      { name: "Israel Sanchez", roleEn: "Production / Scheduling", roleEs: "Producción / Programación", cell: "", afterHours: false },
-      { name: "Jess Goodrich", roleEn: "Maintenance Manager", roleEs: "Gerente de Mantenimiento", cell: "", afterHours: false },
-      { name: "Ramon Flores", roleEn: "Shipping Manager", roleEs: "Gerente de Envíos", cell: "", afterHours: false }
+      { name: "Brian Nguyen", roleEn: "Plant Manager", roleEs: "Gerente de Planta", cell: "", email: "", afterHours: true },
+      { name: "Israel Sanchez", roleEn: "Production / Scheduling", roleEs: "Producción / Programación", cell: "", email: "", afterHours: false },
+      { name: "Jess Goodrich", roleEn: "Maintenance Manager", roleEs: "Gerente de Mantenimiento", cell: "", email: "", afterHours: false },
+      { name: "Ramon Flores", roleEn: "Shipping Manager", roleEs: "Gerente de Envíos", cell: "", email: "", afterHours: false }
     ]
   }
 };

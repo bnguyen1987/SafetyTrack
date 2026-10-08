@@ -77,7 +77,7 @@ sticker or scanning a QR code posted on the plant floor. Address:
   store name `safety-contacts`); saving requires `requester=Brian Nguyen`
   (same name-based trust model as deleting submissions below).
 
-Shift times, supervisors, and other contacts (name, role, cell, after-hours
+Shift times, supervisors, and other contacts (name, role, cell, email, after-hours
 flag) are all edited from the in-app **Settings** tab, visible only when
 logged in as "Brian Nguyen". Settings also shows the sticker link (with
 Copy/Open buttons and a QR code) and a "Print Labels" button that prints six

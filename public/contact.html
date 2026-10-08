@@ -50,6 +50,7 @@
   .btnrow{display:flex;gap:8px;}
   .btnrow a{flex:1;text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;}
   .btnrow a.call{background:var(--primary);color:#fff;}
+  .btnrow a.email{background:var(--surface);color:var(--primary);border:1.5px solid var(--primary);}
   .btnrow a.text{background:var(--surface);color:var(--primary);border:1.5px solid var(--primary);}
   .nonumber{font-size:13px;color:var(--text-tertiary);font-style:italic;}
   .empty{text-align:center;color:var(--text-tertiary);padding:30px 10px;font-size:14px;}
@@ -85,6 +86,7 @@ const UI = {
     otherContacts: 'Other Contacts',
     call: 'Call',
     text: 'Text',
+    email: 'Email',
     noNumber: 'No number on file',
     offline: 'Showing saved contacts — no connection',
     loading: 'Loading...',
@@ -100,6 +102,7 @@ const UI = {
     otherContacts: 'Otros Contactos',
     call: 'Llamar',
     text: 'Mensaje',
+    email: 'Correo',
     noNumber: 'Sin número registrado',
     offline: 'Mostrando contactos guardados — sin conexión',
     loading: 'Cargando...',
@@ -117,6 +120,7 @@ document.getElementById('locLabel').textContent = loc;
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function telHref(cell){ return 'tel:' + String(cell).replace(/[^0-9+]/g,''); }
+function mailHref(e){ return 'mailto:' + String(e).trim(); }
 function smsHref(cell){ return 'sms:' + String(cell).replace(/[^0-9+]/g,''); }
 
 function getCurrentShift(shifts){
@@ -134,7 +138,7 @@ function getCurrentShift(shifts){
   return null;
 }
 
-function contactCardHtml(name, role, cell, badge, cardClass){
+function contactCardHtml(name, role, cell, badge, cardClass, email){
   const t = UI[lang];
   return `
   <div class="card ${cardClass||''}">
@@ -145,10 +149,11 @@ function contactCardHtml(name, role, cell, badge, cardClass){
       </div>
       ${badge ? `<span class="onshiftbadge">${esc(badge)}</span>` : ''}
     </div>
-    ${cell ? `
+    ${(cell || email) ? `
     <div class="btnrow">
-      <a class="call" href="${telHref(cell)}">📞 ${t.call}</a>
-      <a class="text" href="${smsHref(cell)}">💬 ${t.text}</a>
+      ${cell ? `<a class="call" href="${telHref(cell)}">📞 ${t.call}</a>
+      <a class="text" href="${smsHref(cell)}">💬 ${t.text}</a>` : ''}
+      ${email ? `<a class="email" href="${esc(mailHref(email))}">✉️ ${t.email}</a>` : ''}
     </div>` : `<div class="nonumber">${t.noNumber}</div>`}
   </div>`;
 }
@@ -182,12 +187,12 @@ function render(){
     const onNow = supervisors.filter(s => s.shiftId === currentShift.id);
     if (onNow.length) {
       html += `<div class="sectiontitle">${t.onShiftNow} — ${esc(lang==='es' ? (currentShift.nameEs||currentShift.name) : currentShift.name)}</div>`;
-      onNow.forEach(s => { html += contactCardHtml(s.name, null, s.cell, t.onShiftNow, 'featured'); });
+      onNow.forEach(s => { html += contactCardHtml(s.name, null, s.cell, t.onShiftNow, 'featured', s.email); });
     }
   } else if (afterHoursContact) {
     html += `<div class="sectiontitle">${t.afterHours}</div>`;
     html += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">${t.afterHoursNote}</div>`;
-    html += contactCardHtml(afterHoursContact.name, lang==='es' ? afterHoursContact.roleEs : afterHoursContact.roleEn, afterHoursContact.cell, t.afterHours, 'afterhours');
+    html += contactCardHtml(afterHoursContact.name, lang==='es' ? afterHoursContact.roleEs : afterHoursContact.roleEn, afterHoursContact.cell, t.afterHours, 'afterhours', afterHoursContact.email);
   }
 
   if (supervisors.length) {
@@ -196,7 +201,7 @@ function render(){
       const shift = shifts.find(sh => sh.id === s.shiftId);
       const role = shift ? (lang==='es' ? (shift.nameEs||shift.name) : shift.name) : '';
       const isOnNow = currentShift && s.shiftId === currentShift.id;
-      if (!isOnNow) html += contactCardHtml(s.name, role, s.cell, null, '');
+      if (!isOnNow) html += contactCardHtml(s.name, role, s.cell, null, '', s.email);
     });
   }
 
@@ -204,7 +209,7 @@ function render(){
     html += `<div class="sectiontitle">${t.otherContacts}</div>`;
     otherContacts.forEach(c => {
       if (afterHoursContact && c === afterHoursContact && !currentShift) return; // already shown above
-      html += contactCardHtml(c.name, lang==='es' ? c.roleEs : c.roleEn, c.cell, c.afterHours ? t.afterHours : null, '');
+      html += contactCardHtml(c.name, lang==='es' ? c.roleEs : c.roleEn, c.cell, c.afterHours ? t.afterHours : null, '', c.email);
     });
   }
 
