@@ -2490,6 +2490,9 @@ var qrcode = function() {
   .detailgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:16px;}
   .detailgrid div b{display:block;font-size:11px;color:var(--text-mute);text-transform:uppercase;}
   .print-only{display:none;}
+  .monthtitle{font-size:15px;background:var(--teal-light);border-radius:8px;padding:10px 12px;margin:14px 0 8px;}
+  .monthbody{margin-left:6px;padding-left:10px;border-left:2px solid var(--teal-light);}
+  .subgroup{font-size:13px;text-transform:none;letter-spacing:0;}
   .setsec{padding:0;}
   .setsec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;font-weight:700;font-size:15px;color:var(--teal-dark);user-select:none;}
   .setsec-body{padding:2px 16px 16px;border-top:1px solid var(--border);padding-top:14px;}
@@ -2727,6 +2730,7 @@ const state = {
   historyLoaded: false,
   historyFilterLocation: 'all',
   historyExpandedGroups: {},
+  historyOpenMonths: {},
   trainingSearch: '',
   trainingExpanded: {},
   settingsDraft: null,
@@ -4366,26 +4370,49 @@ function settingsHtml(){
   </div>`;
 }
 
+// month key (YYYY-MM) in the viewer's local time, so a late-evening submission lands in the right month
+function monthKeyOf(i){
+  const ts = i.submittedAtLocal || i.submittedAt;
+  const d = ts ? new Date(ts) : null;
+  if (!d || isNaN(d)) return 'unknown';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function monthLabel(key){
+  if (key === 'unknown') return L('Unknown date', 'Fecha desconocida');
+  const [y, m] = key.split('-').map(Number);
+  const label = new Date(y, m - 1, 1).toLocaleDateString(appLang() === 'es' ? 'es-US' : 'en-US', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+function currentMonthKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+// The current month starts open; every other month (and every checklist inside a month) starts closed.
+function isMonthOpen(key){
+  const v = state.historyOpenMonths[key];
+  return v === undefined ? key === currentMonthKey() : v;
+}
+
 function historyHtml(){
   const items = historyFilteredItems();
   const searching = !!state.historySearch;
 
-  // group by checklist (formId), newest-first within each group,
-  // groups themselves ordered by their most recent submission
-  const groupMap = new Map();
-  items.forEach(i => {
-    if (!groupMap.has(i.formId)) groupMap.set(i.formId, { formId: i.formId, formTitle: i.formTitle, items: [] });
-    groupMap.get(i.formId).items.push(i);
+  // month (newest first) -> checklist type (most recently submitted first) -> submissions (newest first)
+  const newestFirst = (a, b) => (b.submittedAtLocal || '').localeCompare(a.submittedAtLocal || '');
+  const monthMap = new Map();
+  [...items].sort(newestFirst).forEach(i => {
+    const mk = monthKeyOf(i);
+    if (!monthMap.has(mk)) monthMap.set(mk, new Map());
+    const forms = monthMap.get(mk);
+    if (!forms.has(i.formId)) forms.set(i.formId, { formId: i.formId, formTitle: i.formTitle, items: [] });
+    forms.get(i.formId).items.push(i);
   });
-  const groups = [...groupMap.values()].sort((a, b) => {
-    const at = a.items[0].submittedAtLocal || '', bt = b.items[0].submittedAtLocal || '';
-    return bt.localeCompare(at);
-  });
+  const months = [...monthMap.keys()].sort((a, b) => b.localeCompare(a));
 
   return `
   <div class="hero">
     <h1>${L('History','Historial')}</h1>
-    <p>${L('Every submitted checklist, grouped by type.','Cada lista enviada, agrupada por tipo.')} ${items.length} ${L('submission'+(items.length===1?'':'s'), items.length===1?'envío':'envíos')} ${L('at','en')} ${esc(state.location)}.</p>
+    <p>${L('Every submitted checklist, grouped by month.','Cada lista enviada, agrupada por mes.')} ${items.length} ${L('submission'+(items.length===1?'':'s'), items.length===1?'envío':'envíos')} ${L('at','en')} ${esc(state.location)}.</p>
   </div>
   <div class="filterbar">
     <select id="histLocationFilter" onchange="setHistLocationFilter(this.value)">
@@ -4395,17 +4422,31 @@ function historyHtml(){
     <input type="text" id="histSearch" placeholder="${L('Search employee, machine, location, notes...','Buscar empleado, máquina, ubicación, notas...')}" value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
     <button class="btn ghost" onclick="exportHistoryCsv()">${L('Export CSV','Exportar CSV')}</button>
   </div>
-  ${groups.length === 0 ? `<div class="empty">${L('No submissions found.','No se encontraron envíos.')}</div>` : groups.map(g => {
-    const key = g.formId;
-    const expanded = searching || !!state.historyExpandedGroups[key];
+  ${months.length === 0 ? `<div class="empty">${L('No submissions found.','No se encontraron envíos.')}</div>` : months.map(mk => {
+    const forms = [...monthMap.get(mk).values()].sort((a, b) => newestFirst(a.items[0], b.items[0]));
+    const total = forms.reduce((n, g) => n + g.items.length, 0);
+    const monthOpen = searching || isMonthOpen(mk);
     return `
-    <div class="grouptitle" onclick="toggleHistoryGroup('${escJs(key)}')">
-      <span>${esc(titleStr(g.formTitle))} <span class="groupcount">${g.items.length}</span></span>
-      <span class="groupchevron ${expanded?'open':''}">›</span>
+    <div class="grouptitle monthtitle" onclick="toggleHistoryMonth('${escJs(mk)}')">
+      <span>📅 ${esc(monthLabel(mk))} <span class="groupcount">${total}</span></span>
+      <span class="groupchevron ${monthOpen?'open':''}">›</span>
     </div>
-    ${expanded ? g.items.map(i => histItemHtml(i)).join('') : ''}`;
+    ${monthOpen ? `<div class="monthbody">${forms.map(g => {
+      const key = mk + '|' + g.formId;
+      const expanded = searching || !!state.historyExpandedGroups[key];
+      return `
+      <div class="grouptitle subgroup" onclick="toggleHistoryGroup('${escJs(key)}')">
+        <span>${esc(titleStr(g.formTitle))} <span class="groupcount">${g.items.length}</span></span>
+        <span class="groupchevron ${expanded?'open':''}">›</span>
+      </div>
+      ${expanded ? g.items.map(i => histItemHtml(i)).join('') : ''}`;
+    }).join('')}</div>` : ''}`;
   }).join('')}
   `;
+}
+function toggleHistoryMonth(key){
+  state.historyOpenMonths[key] = !isMonthOpen(key);
+  render();
 }
 function toggleHistoryGroup(key){
   state.historyExpandedGroups[key] = !state.historyExpandedGroups[key];
