@@ -2353,33 +2353,36 @@ var qrcode = function() {
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
-  header.appbar{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border);padding:14px 20px;position:sticky;top:0;z-index:50;box-shadow:none;}
-  header.appbar .headerinner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;}
-  header.appbar .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-  header.appbar .brand .logo{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;}
-  header.appbar .brand .title{font-weight:700;font-size:16px;line-height:1.2;letter-spacing:-0.02em;color:var(--text);}
-  header.appbar .brand .subtitle{font-size:11px;color:var(--text-tertiary);opacity:1;}
-  header.appbar .livebadge{font-size:11px;color:var(--resolved);font-weight:500;display:flex;align-items:center;gap:4px;margin-right:4px;}
-  header.appbar .livebadge .dot{width:6px;height:6px;border-radius:50%;background:var(--resolved);animation:pulse 2s infinite;}
+  header.appbar{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border);padding:0;position:sticky;top:0;z-index:50;box-shadow:none;}
+  header.appbar .headerinner{max-width:1200px;margin:0 auto;padding:0 20px;}
+  header.appbar .hdr-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 14px;padding:12px 0 10px;}
+  header.appbar .brand{display:flex;align-items:center;gap:11px;cursor:pointer;min-width:0;}
+  header.appbar .brand .logo{width:38px;height:38px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  header.appbar .brand .title{font-weight:700;font-size:16px;line-height:1.2;letter-spacing:-0.01em;color:var(--text);}
+  header.appbar .brand .subtitle{font-size:11px;line-height:1.3;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:500;}
   header.appbar .navbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin-left:auto;}
-  header.appbar .navtabs{display:flex;gap:3px;background:oklch(94% 0.005 170);padding:4px;border-radius:8px;}
-  header.appbar .navtabs button{background:transparent;border:none;color:var(--text-secondary);padding:7px 11px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 150ms var(--ease-out-expo);}
+  header.appbar .hlang{display:flex;gap:6px;}
+  header.appbar .hlang button{min-width:38px;height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;}
+  header.appbar .hlang button.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+  header.appbar button.plainbtn{height:32px;font-size:13px;padding:0 14px;border-radius:8px;border:none;background:oklch(95% 0.008 170);color:var(--text-secondary);cursor:pointer;font-weight:500;white-space:nowrap;}
+  header.appbar button.plainbtn:hover{background:oklch(92% 0.01 170);color:var(--text);}
+  header.appbar .whoami{font-size:11.5px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+  header.appbar .locpicker{border:1px solid var(--border);color:var(--text);height:32px;padding:0 10px;border-radius:8px;font-size:12.5px;width:auto;background:var(--surface);}
+  header.appbar .locpicker option{color:#1F2A26;}
+  header.appbar .navtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -8px;}
+  header.appbar .navtabs::-webkit-scrollbar{display:none;}
+  header.appbar .navtabs button{display:inline-flex;align-items:center;gap:7px;background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;color:var(--text-secondary);padding:10px 12px 11px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;margin-bottom:-1px;transition:color 150ms,border-color 150ms;}
+  header.appbar .navtabs button svg{width:16px;height:16px;flex-shrink:0;}
   header.appbar .navtabs button:hover{color:var(--text);}
-  header.appbar .navtabs button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px oklch(0% 0 0 / 0.08);}
-  header.appbar button.plainbtn{font-size:12px;padding:6px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-weight:500;white-space:nowrap;}
-  header.appbar .langtoggle button{padding:5px 11px;font-size:12px;}
-  header.appbar button.plainbtn:hover{border-color:var(--text-tertiary);color:var(--text);}
-  header.appbar .whoami{font-size:11.5px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-right:2px;white-space:nowrap;}
-  header.appbar .locpicker{border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius-sm);font-size:12.5px;margin-right:2px;width:auto;background:var(--surface);}
+  header.appbar .navtabs button.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600;}
   .pendingbtn{background:var(--high-bg)!important;color:var(--high)!important;border:1px solid var(--high)!important;font-weight:700!important;animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
-  header.appbar .locpicker option{color:#1F2A26;}
   @media(max-width:640px){
-    header.appbar{padding:10px 12px;}
-    header.appbar .navbtns{width:100%;justify-content:flex-start;gap:6px;}
-    header.appbar .navtabs{width:100%;justify-content:flex-start;overflow-x:auto;}
-    header.appbar .navtabs button,header.appbar .plainbtn{padding:7px 10px;font-size:12.5px;}
-    header.appbar .whoami{width:100%;}
+    header.appbar .headerinner{padding:0 12px;}
+    header.appbar .navbtns{width:100%;flex-wrap:nowrap;justify-content:flex-start;gap:6px;}
+    header.appbar .locpicker{flex:1;min-width:0;}
+    header.appbar .whoami{display:none;}
+    header.appbar .navtabs button{padding:10px 10px 11px;font-size:13px;}
   }
   main{max-width:1200px;margin:0 auto;padding:24px;padding-bottom:80px;}
   .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
@@ -2911,41 +2914,53 @@ function render(){
   wireEvents();
 }
 
+const NAV_ICONS = {
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  openitems: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>',
+  history: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  training: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'
+};
+function navTabHtml(screen, handler, label){
+  const active = state.screen === screen ? 'active' : '';
+  return `<button class="${active}" onclick="${handler}()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[screen]}</svg>${label}</button>`;
+}
+
 function headerHtml(){
   const who = state.employeeName ? esc(state.employeeName) : '';
   const loc = state.location;
   const pendingCount = getPendingQueue().length;
-  const isActive = (s) => state.screen === s ? 'active' : '';
   return `
   <header class="appbar">
     <div class="headerinner">
-    <div class="brand" onclick="goHome()">
-      <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
-      <div class="title">SafetyTrack</div>
-      <span class="livebadge"><span class="dot"></span>Live</span>
-    </div>
-    ${loc ? `<div style="display:flex;align-items:center;gap:8px;">
-      <span class="whoami" style="margin:0;">${L('Location','Ubicación')}</span>
-      <select class="locpicker" onchange="changeLocation(this.value)" title="${L('Location','Ubicación')}">
-        ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
-      </select>
-    </div>` : ''}
-    <nav class="navtabs">
-      <button class="${isActive('home')}" onclick="goHome()">${L('Checklists','Listas')}</button>
-      <button class="${isActive('openitems')}" onclick="goOpenItems()">${L('Open Items','Pendientes')}</button>
-      <button class="${isActive('history')}" onclick="goHistory()">${L('History','Historial')}</button>
-      <button class="${isActive('training')}" onclick="goTraining()">${L('Training','Capacitación')}</button>
-      ${isAdmin() ? `<button class="${isActive('settings')}" onclick="goSettings()">${L('Settings','Configuración')}</button>` : ''}
-    </nav>
-    <div class="navbtns">
-      <div class="langtoggle" title="${L('Language','Idioma')}">
-        <button type="button" class="${appLang()==='en'?'active':''}" onclick="setAppLang('en')">EN</button>
-        <button type="button" class="${appLang()==='es'?'active':''}" onclick="setAppLang('es')">ES</button>
+    <div class="hdr-top">
+      <div class="brand" onclick="goHome()">
+        <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div>
+          <div class="title">SafetyTrack</div>
+          <div class="subtitle">GoldenWest${loc ? ' · ' + esc(loc) : ''}</div>
+        </div>
       </div>
-      ${who ? `<span class="whoami">${who}</span>` : ''}
-      ${pendingCount > 0 ? `<button class="pendingbtn plainbtn" onclick="flushPendingQueue(true)" title="${L('Tap to retry syncing now','Toque para reintentar la sincronización')}">⏳ ${pendingCount} ${L('pending','pendientes')}</button>` : ''}
-      ${who ? `<button class="plainbtn" onclick="changeName()">${L('Log Out','Cerrar Sesión')}</button>` : ''}
+      <div class="navbtns">
+        ${loc ? `<select class="locpicker" onchange="changeLocation(this.value)" title="${L('Location','Ubicación')}">
+          ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
+        </select>` : ''}
+        <div class="hlang" title="${L('Language','Idioma')}">
+          <button type="button" class="${appLang()==='en'?'active':''}" onclick="setAppLang('en')">EN</button>
+          <button type="button" class="${appLang()==='es'?'active':''}" onclick="setAppLang('es')">ES</button>
+        </div>
+        ${who ? `<span class="whoami">${who}</span>` : ''}
+        ${pendingCount > 0 ? `<button class="pendingbtn plainbtn" onclick="flushPendingQueue(true)" title="${L('Tap to retry syncing now','Toque para reintentar la sincronización')}">⏳ ${pendingCount} ${L('pending','pendientes')}</button>` : ''}
+        ${who ? `<button class="plainbtn" onclick="changeName()">${L('Log Out','Cerrar Sesión')}</button>` : ''}
+      </div>
     </div>
+    <nav class="navtabs">
+      ${navTabHtml('home','goHome',L('Checklists','Listas'))}
+      ${navTabHtml('openitems','goOpenItems',L('Open Items','Pendientes'))}
+      ${navTabHtml('history','goHistory',L('History','Historial'))}
+      ${navTabHtml('training','goTraining',L('Training','Capacitación'))}
+      ${isAdmin() ? navTabHtml('settings','goSettings',L('Settings','Configuración')) : ''}
+    </nav>
     </div>
   </header>`;
 }
