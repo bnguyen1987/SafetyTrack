@@ -2367,7 +2367,9 @@ var qrcode = function() {
   header.appbar button.plainbtn{height:32px;font-size:13px;padding:0 14px;border-radius:8px;border:none;background:oklch(95% 0.008 170);color:var(--text-secondary);cursor:pointer;font-weight:500;white-space:nowrap;}
   header.appbar button.plainbtn:hover{background:oklch(92% 0.01 170);color:var(--text);}
   header.appbar .whoami{font-size:11.5px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
-  header.appbar .locpicker{border:1px solid var(--border);color:var(--text);height:32px;padding:0 10px;border-radius:8px;font-size:12.5px;width:auto;background:var(--surface);}
+  header.appbar .subtitle{display:flex;align-items:center;gap:4px;}
+  header.appbar .locpicker{appearance:none;-webkit-appearance:none;border:none;outline:none;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right center;color:oklch(55% 0.01 170)!important;font:inherit;font-size:13.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 22px 2px 2px;margin:0;width:auto;height:auto;cursor:pointer;border-radius:4px;}
+  header.appbar .locpicker:focus-visible{box-shadow:0 0 0 2px var(--primary-light);}
   header.appbar .locpicker option{color:#1F2A26;}
   header.appbar .navtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -8px;}
   header.appbar .navtabs::-webkit-scrollbar{display:none;}
@@ -2380,7 +2382,6 @@ var qrcode = function() {
   @media(max-width:640px){
     header.appbar .headerinner{padding:0 12px;}
     header.appbar .navbtns{width:100%;flex-wrap:nowrap;justify-content:flex-start;gap:6px;}
-    header.appbar .locpicker{flex:1;min-width:0;}
     header.appbar .whoami{display:none;}
     header.appbar .navtabs button{padding:10px 10px 11px;font-size:13px;}
   }
@@ -2938,13 +2939,12 @@ function headerHtml(){
         <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
         <div>
           <div class="title">SafetyTrack</div>
-          <div class="subtitle">GoldenWest${loc ? ' · ' + esc(loc) : ''}</div>
+          <div class="subtitle">GoldenWest${loc ? ` · <select class="locpicker" onclick="event.stopPropagation()" onchange="changeLocation(this.value)" title="${L('Location','Ubicación')}" aria-label="${L('Location','Ubicación')}">
+            ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
+          </select>` : ''}</div>
         </div>
       </div>
       <div class="navbtns">
-        ${loc ? `<select class="locpicker" onchange="changeLocation(this.value)" title="${L('Location','Ubicación')}">
-          ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
-        </select>` : ''}
         <div class="hlang" title="${L('Language','Idioma')}">
           <button type="button" class="${appLang()==='en'?'active':''}" onclick="setAppLang('en')">EN</button>
           <button type="button" class="${appLang()==='es'?'active':''}" onclick="setAppLang('es')">ES</button>
