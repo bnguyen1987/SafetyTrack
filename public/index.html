@@ -2490,6 +2490,9 @@ var qrcode = function() {
   .detailgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:16px;}
   .detailgrid div b{display:block;font-size:11px;color:var(--text-mute);text-transform:uppercase;}
   .print-only{display:none;}
+  .setsec{padding:0;}
+  .setsec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;font-weight:700;font-size:15px;color:var(--teal-dark);user-select:none;}
+  .setsec-body{padding:2px 16px 16px;border-top:1px solid var(--border);padding-top:14px;}
   .qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
   .topicgrid{display:flex;flex-direction:column;gap:14px;}
   .topiccard{border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative;background:#fff;}
@@ -2507,6 +2510,8 @@ var qrcode = function() {
     header.appbar,.actionbar,.filterbar,.backlink,.btn,.hero p{display:none!important;}
     body{background:#fff;}
     .print-only{display:block;}
+    body:not([data-print="labels"]) .print-labels{display:none!important;}
+    body:not([data-print="qr"]) .print-qr{display:none!important;}
     .screen-only{display:none!important;}
     .qrgrid{grid-template-columns:repeat(2,1fr);}
     .qrcard{break-inside:avoid;border:1px dashed #999;}
@@ -2711,7 +2716,7 @@ const QR_FORM_ID = QR_PARAMS.get('form') || null;
 const QR_LOC = QR_PARAMS.get('loc') || null;
 
 const state = {
-  screen: 'home',        // home | form | history | detail | openitems | qrcodes
+  screen: 'home',        // home | form | history | detail | openitems | training | settings
   employeeName: localStorage.getItem('gwpg_st_name') || '',
   location: localStorage.getItem('gwpg_st_location') || '',
   pendingQrForm: (QR_FORM_ID && getFormSafe(QR_FORM_ID)) ? QR_FORM_ID : null,
@@ -2728,6 +2733,7 @@ const state = {
   settingsLoading: false,
   settingsSaving: false,
   settingsUnlocked: false,
+  settingsOpen: {},   // which Settings sections are expanded (all collapsed by default)
   settingsPasswordEntered: '',
   openItemsFilterLocation: null,
   historySearch: '',
@@ -2924,7 +2930,6 @@ function headerHtml(){
       <button class="${isActive('home')}" onclick="goHome()">${L('Checklists','Listas')}</button>
       <button class="${isActive('openitems')}" onclick="goOpenItems()">${L('Open Items','Pendientes')}</button>
       <button class="${isActive('history')}" onclick="goHistory()">${L('History','Historial')}</button>
-      <button class="${isActive('qrcodes')}" onclick="goQrCodes()">${L('QR Codes','Códigos QR')}</button>
       <button class="${isActive('training')}" onclick="goTraining()">${L('Training','Capacitación')}</button>
       ${isAdmin() ? `<button class="${isActive('settings')}" onclick="goSettings()">${L('Settings','Configuración')}</button>` : ''}
     </nav>
@@ -2955,7 +2960,6 @@ function screenHtml(){
   if (state.screen === 'history') return historyHtml();
   if (state.screen === 'detail') return detailHtml();
   if (state.screen === 'openitems') return openItemsHtml();
-  if (state.screen === 'qrcodes') return qrCodesHtml();
   if (state.screen === 'training') return trainingRecordsHtml();
   if (state.screen === 'settings') return settingsHtml();
   return homeHtml();
@@ -2991,7 +2995,6 @@ function goOpenItems(){
   loadHistoryIfNeeded();
   render();
 }
-function goQrCodes(){ if(!state.employeeName) return; state.screen='qrcodes'; render(); }
 function goTraining(){ if(!state.employeeName) return; state.screen='training'; loadHistoryIfNeeded(); render(); }
 function changeName(){
   localStorage.removeItem('gwpg_st_name');
@@ -3920,24 +3923,22 @@ function qrDataUrl(text){
   }
 }
 
-function qrCodesHtml(){
-  const qrForms = FORMS.filter(f =>
+function qrFormsForLocation(){
+  return FORMS.filter(f =>
     (f.template === 'machine' || f.id === 'daily-forklift' || f.template === 'report' || f.template === 'orientation') &&
     (!f.location || f.location === state.location)
   );
+}
+function qrGridHtml(){
+  const qrForms = qrFormsForLocation();
   return `
-  <div class="hero">
-    <h1>${L('QR Codes','Códigos QR')}</h1>
-    <p>${L('Print one of these and post it at each machine (or common areas, for the hazard-report code). Scanning it opens that checklist directly — the employee just enters their name (and signs, where required) and submits.','Imprima uno de estos y colóquelo en cada máquina (o en áreas comunes, para el código de reporte de peligros). Al escanearlo se abre esa lista directamente — el empleado solo ingresa su nombre (y firma, donde se requiera) y la envía.')}</p>
-  </div>
-  <div style="margin-bottom:14px;"><button class="btn secondary" onclick="window.print()">🖨️ ${L('Print All','Imprimir Todo')}</button></div>
   <div class="qrgrid">
     ${qrForms.map(f => {
       const isMachine = f.template === 'machine';
       const isReport = f.template === 'report';
       const isOrientation = f.template === 'orientation';
-      const topLine = isMachine ? L('Monthly Machine Safety Checklist','Lista de Seguridad Mensual de Máquina') : (isOrientation ? L('Machine Safety Orientation','Orientación de Seguridad de Máquina') : formTitle(f));
-      const subLine = isMachine ? f.machine : (isReport ? L('Scan to report a hazard or concern','Escanee para reportar un peligro o preocupación') : (isOrientation ? f.machine : f.code));
+      const topLine = isMachine ? 'Monthly Machine Safety Checklist' : (isOrientation ? 'Machine Safety Orientation' : f.title);
+      const subLine = isMachine ? f.machine : (isReport ? 'Scan to report a hazard or concern' : (isOrientation ? f.machine : f.code));
       return `
       <div class="qrcard">
         <div class="qrcanvaswrap"><img src="${qrDataUrl(qrLinkFor(f))}" width="180" height="180" alt="QR code for ${esc(topLine)}"></div>
@@ -3946,8 +3947,7 @@ function qrCodesHtml(){
       </div>`;
     }).join('')}
   </div>
-  ${qrForms.length === 0 ? `<div class="empty">${L('No checklists set up for','No hay listas configuradas para')} ${esc(state.location)}.</div>` : ''}
-  `;
+  ${qrForms.length === 0 ? `<div class="empty">No checklists set up for ${esc(state.location)}.</div>` : ''}`;
 }
 
 function openItemsHtml(){
@@ -4201,6 +4201,30 @@ function copyStickerLink(){
   }
 }
 
+function toggleSettingsSection(key){
+  state.settingsOpen[key] = !state.settingsOpen[key];
+  render();
+}
+// A collapsible Settings card. The body is only built when the section is open; edits live in
+// state.settingsDraft, so collapsing never loses what was typed.
+function settingsSection(key, title, badge, bodyFn){
+  const open = !!state.settingsOpen[key];
+  return `
+  <div class="card setsec">
+    <div class="setsec-head" onclick="toggleSettingsSection('${key}')">
+      <span>${title}${badge !== '' && badge != null ? ` <span class="groupcount">${badge}</span>` : ''}</span>
+      <span class="groupchevron ${open?'open':''}">›</span>
+    </div>
+    ${open ? `<div class="setsec-body">${bodyFn()}</div>` : ''}
+  </div>`;
+}
+function printMode(mode){
+  document.body.setAttribute('data-print', mode);
+  const done = () => { document.body.removeAttribute('data-print'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(() => window.print(), 60);
+}
+
 function settingsHtml(){
   if (!isAdmin()) return '<div class="empty">Not authorized.</div>';
   if (!state.settingsUnlocked) {
@@ -4225,8 +4249,7 @@ function settingsHtml(){
     <p>Manage the supervisor contact page employees reach by tapping an NFC sticker or scanning a QR code — no login needed on their end.</p>
   </div>
 
-  <div class="card">
-    <div class="sectiontitle" style="margin-top:0;">Shifts</div>
+  ${settingsSection('shifts','Shifts',d.shifts.length,() => `
     ${d.shifts.map((s, i) => `
       <div class="settingsrow">
         <div class="fieldrow">
@@ -4251,10 +4274,9 @@ function settingsHtml(){
     `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
     ${d.shifts.length === 0 ? '<div class="empty">No shifts yet.</div>' : ''}
     <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addShift()">+ Add Shift</button>
-  </div>
+  `)}
 
-  <div class="card">
-    <div class="sectiontitle" style="margin-top:0;">Supervisors</div>
+  ${settingsSection('supervisors','Supervisors',d.supervisors.length,() => `
     ${d.supervisors.map((s, i) => `
       <div class="settingsrow">
         <div class="fieldrow">
@@ -4275,10 +4297,9 @@ function settingsHtml(){
     `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
     ${d.supervisors.length === 0 ? '<div class="empty">No supervisors yet.</div>' : ''}
     <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addSupervisor()">+ Add Supervisor</button>
-  </div>
+  `)}
 
-  <div class="card">
-    <div class="sectiontitle" style="margin-top:0;">Other Contacts</div>
+  ${settingsSection('contacts','Other Contacts',d.otherContacts.length,() => `
     ${d.otherContacts.map((c, i) => `
       <div class="settingsrow">
         <div class="fieldrow">
@@ -4300,14 +4321,13 @@ function settingsHtml(){
     `).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">')}
     ${d.otherContacts.length === 0 ? '<div class="empty">No other contacts yet.</div>' : ''}
     <button type="button" class="btn secondary" style="margin-top:12px;" onclick="addContact()">+ Add Contact</button>
-  </div>
+  `)}
 
   <div class="card">
     <button type="button" class="btn primary" style="width:100%;" onclick="saveSettings()" ${state.settingsSaving?'disabled':''}>${state.settingsSaving ? 'Saving...' : 'Save Contacts'}</button>
   </div>
 
-  <div class="card">
-    <div class="sectiontitle" style="margin-top:0;">Sticker Link</div>
+  ${settingsSection('sticker','Sticker Link & Labels','',() => `
     <p style="font-size:13px;color:var(--text-mute);margin-top:0;">This link never needs to change — program it once onto each NFC sticker, or use the QR code below.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
       <input type="text" readonly value="${esc(link)}" style="flex:1;min-width:220px;font-size:13px;" onclick="this.select()">
@@ -4315,11 +4335,22 @@ function settingsHtml(){
       <a class="btn secondary" href="${esc(link)}" target="_blank" style="text-decoration:none;">Open</a>
     </div>
     <div class="qrcanvaswrap" style="margin-bottom:14px;"><img src="${qrDataUrl(link)}" width="160" height="160" alt="QR code for the sticker link"></div>
-    <button type="button" class="btn secondary" onclick="window.print()">Print 2×2 Labels (12 per sheet)</button>
-  </div>
+    <button type="button" class="btn secondary" onclick="printMode('labels')">Print 2×2 Labels (12 per sheet)</button>
+  `)}
+
+  ${settingsSection('qrcodes','QR Codes (Checklists)',qrFormsForLocation().length,() => `
+    <p style="font-size:13px;color:var(--text-mute);margin-top:0;">Print one of these and post it at each machine (or common areas, for the hazard-report code). Scanning it opens that checklist directly — the employee just enters their name (and signs, where required) and submits.</p>
+    <div style="margin-bottom:14px;"><button type="button" class="btn secondary" onclick="printMode('qr')">🖨️ Print All</button></div>
+    ${qrGridHtml()}
+  `)}
   </div>
 
-  <div class="print-only">
+  <div class="print-only print-qr">
+    <h2 style="margin:0 0 12px;">QR Codes — ${esc(state.location)}</h2>
+    ${qrGridHtml()}
+  </div>
+
+  <div class="print-only print-labels">
     <div class="labelgrid">
       ${Array.from({length:12}).map(() => `
         <div class="labelcard">
