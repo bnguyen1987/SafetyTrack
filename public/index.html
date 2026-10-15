@@ -2367,6 +2367,7 @@ var qrcode = function() {
   header.appbar .navtabs button:hover{color:var(--text);}
   header.appbar .navtabs button.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px oklch(0% 0 0 / 0.08);}
   header.appbar button.plainbtn{font-size:12px;padding:6px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-weight:500;white-space:nowrap;}
+  header.appbar .langtoggle button{padding:5px 11px;font-size:12px;}
   header.appbar button.plainbtn:hover{border-color:var(--text-tertiary);color:var(--text);}
   header.appbar .whoami{font-size:11.5px;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-right:2px;white-space:nowrap;}
   header.appbar .locpicker{border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius-sm);font-size:12.5px;margin-right:2px;width:auto;background:var(--surface);}
@@ -2848,6 +2849,52 @@ function startForm(id){
 }
 
 // ---------- render engine ----------
+// ---------- app-wide language (EN / ES) ----------
+// Shares the 'gwpg_st_lang' preference with the per-form toggles, so choosing a language here
+// also sets the language new forms open in.
+function appLang(){ try { return localStorage.getItem('gwpg_st_lang') === 'es' ? 'es' : 'en'; } catch(e) { return 'en'; } }
+function L(en, es){ return appLang() === 'es' ? es : en; }
+function setAppLang(l){
+  try { localStorage.setItem('gwpg_st_lang', l); } catch(e) {}
+  if (state.screen === 'form' && state.formData && 'lang' in state.formData) state.formData.lang = l;
+  document.documentElement.lang = l;
+  render();
+}
+const TITLE_ES_PREFIX = [
+  [/^Monthly Machine Safety Checklist - /, 'Lista de Seguridad Mensual de Máquina - '],
+  [/^Machine Safety Orientation - /, 'Orientación de Seguridad de Máquina - ']
+];
+const TITLE_ES_EXACT = {
+  'Design Safety Inspection':'Inspección de Seguridad - Diseño',
+  'Maintenance Safety Inspection':'Inspección de Seguridad - Mantenimiento',
+  'Office Safety Inspection':'Inspección de Seguridad - Oficina',
+  'Receiving Safety Inspection':'Inspección de Seguridad - Recepción',
+  'Shipping Safety Inspection':'Inspección de Seguridad - Envíos',
+  'Corrugated Warehouse Safety Inspection':'Inspección de Seguridad - Almacén de Corrugado',
+  'Yard Safety Inspection':'Inspección de Seguridad - Patio',
+  'Ladder Inspection':'Inspección de Escaleras',
+  'Daily Forklift Inspection':'Inspección Diaria de Montacargas',
+  'Monthly Fire Extinguisher Inspection':'Inspección Mensual de Extintores',
+  'Report a Safety Concern':'Reportar una Preocupación de Seguridad',
+  'Monthly Machine Safety Checklist - Forklift':'Lista de Seguridad Mensual de Máquina - Montacargas'
+};
+function titleStr(t){
+  if (appLang() !== 'es' || !t) return t;
+  if (TITLE_ES_EXACT[t]) return TITLE_ES_EXACT[t];
+  for (const [re, es] of TITLE_ES_PREFIX) if (re.test(t)) return t.replace(re, es);
+  return t;
+}
+function formTitle(f){ return titleStr(f.title); }
+const GROUP_LABELS_ES = {
+  report:'🚨 Reportar una Preocupación',
+  zone:'🛡️ Inspecciones de Áreas y Departamentos',
+  equipment:'🔧 Revisiones de Equipo',
+  machine:'⚙️ Listas de Seguridad Mensuales de Máquinas',
+  orientation:'🎓 Orientaciones de Seguridad de Máquinas'
+};
+function groupLabel(g){ return appLang() === 'es' ? (GROUP_LABELS_ES[g.key] || g.label) : g.label; }
+function dateLocale(){ return appLang() === 'es' ? 'es-US' : undefined; }
+
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = headerHtml() + '<main>' + screenHtml() + '</main>';
@@ -2868,23 +2915,27 @@ function headerHtml(){
       <span class="livebadge"><span class="dot"></span>Live</span>
     </div>
     ${loc ? `<div style="display:flex;align-items:center;gap:8px;">
-      <span class="whoami" style="margin:0;">Location</span>
-      <select class="locpicker" onchange="changeLocation(this.value)" title="Location">
+      <span class="whoami" style="margin:0;">${L('Location','Ubicación')}</span>
+      <select class="locpicker" onchange="changeLocation(this.value)" title="${L('Location','Ubicación')}">
         ${LOCATIONS.map(l => `<option value="${esc(l)}" ${loc===l?'selected':''}>${esc(l)}</option>`).join('')}
       </select>
     </div>` : ''}
     <nav class="navtabs">
-      <button class="${isActive('home')}" onclick="goHome()">Checklists</button>
-      <button class="${isActive('openitems')}" onclick="goOpenItems()">Open Items</button>
-      <button class="${isActive('history')}" onclick="goHistory()">History</button>
-      <button class="${isActive('qrcodes')}" onclick="goQrCodes()">QR Codes</button>
-      <button class="${isActive('training')}" onclick="goTraining()">Training</button>
-      ${isAdmin() ? `<button class="${isActive('settings')}" onclick="goSettings()">Settings</button>` : ''}
+      <button class="${isActive('home')}" onclick="goHome()">${L('Checklists','Listas')}</button>
+      <button class="${isActive('openitems')}" onclick="goOpenItems()">${L('Open Items','Pendientes')}</button>
+      <button class="${isActive('history')}" onclick="goHistory()">${L('History','Historial')}</button>
+      <button class="${isActive('qrcodes')}" onclick="goQrCodes()">${L('QR Codes','Códigos QR')}</button>
+      <button class="${isActive('training')}" onclick="goTraining()">${L('Training','Capacitación')}</button>
+      ${isAdmin() ? `<button class="${isActive('settings')}" onclick="goSettings()">${L('Settings','Configuración')}</button>` : ''}
     </nav>
     <div class="navbtns">
+      <div class="langtoggle" title="${L('Language','Idioma')}">
+        <button type="button" class="${appLang()==='en'?'active':''}" onclick="setAppLang('en')">EN</button>
+        <button type="button" class="${appLang()==='es'?'active':''}" onclick="setAppLang('es')">ES</button>
+      </div>
       ${who ? `<span class="whoami">${who}</span>` : ''}
-      ${pendingCount > 0 ? `<button class="pendingbtn plainbtn" onclick="flushPendingQueue(true)" title="Tap to retry syncing now">⏳ ${pendingCount} pending</button>` : ''}
-      ${who ? `<button class="plainbtn" onclick="changeName()">Log Out</button>` : ''}
+      ${pendingCount > 0 ? `<button class="pendingbtn plainbtn" onclick="flushPendingQueue(true)" title="${L('Tap to retry syncing now','Toque para reintentar la sincronización')}">⏳ ${pendingCount} ${L('pending','pendientes')}</button>` : ''}
+      ${who ? `<button class="plainbtn" onclick="changeName()">${L('Log Out','Cerrar Sesión')}</button>` : ''}
     </div>
     </div>
   </header>`;
@@ -2916,17 +2967,17 @@ function loginHtml(){
   return `
   <div class="loginwrap">
     <div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
-    <h2 style="margin:0 0 6px;">${qrForm ? esc(qrForm.title) : 'Welcome to SafetyTrack'}</h2>
-    <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">${qrForm ? 'Enter your name to start this checklist.' : 'Enter your name and pick your location to start filling out safety checklists.'}</p>
-    <input type="text" id="nameInput" placeholder="First and Last Name" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
+    <h2 style="margin:0 0 6px;">${qrForm ? esc(formTitle(qrForm)) : L('Welcome to SafetyTrack','Bienvenido a SafetyTrack')}</h2>
+    <p style="color:var(--text-mute);font-size:14px;margin-bottom:20px;">${qrForm ? L('Enter your name to start this checklist.','Ingrese su nombre para comenzar esta lista.') : L('Enter your name and pick your location to start filling out safety checklists.','Ingrese su nombre y elija su ubicación para comenzar a llenar las listas de seguridad.')}</p>
+    <input type="text" id="nameInput" placeholder="${L('First and Last Name','Nombre y Apellido')}" style="text-align:center;margin-bottom:12px;" value="${esc(state.employeeName)}" />
     ${locKnown ? `
       <p style="font-size:13px;color:var(--text-mute);margin-bottom:12px;">📍 ${esc(state.location)}</p>
     ` : `
     <select id="locationInput" style="text-align:center;margin-bottom:12px;">
-      <option value="">Select your location...</option>
+      <option value="">${L('Select your location...','Seleccione su ubicación...')}</option>
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${state.location===l?'selected':''}>${esc(l)}</option>`).join('')}
     </select>`}
-    <button class="btn primary block" onclick="submitName()">Continue</button>
+    <button class="btn primary block" onclick="submitName()">${L('Continue','Continuar')}</button>
 
   </div>`;
 }
@@ -2956,9 +3007,9 @@ function submitName(){
   const v = document.getElementById('nameInput').value.trim();
   const locInput = document.getElementById('locationInput');
   const loc = locInput ? locInput.value : state.location;
-  if (!v) { showToast('Please enter your name'); return; }
-  if (!isFullName(v)) { showToast('Please enter your first and last name'); return; }
-  if (!loc) { showToast('Please select your location'); return; }
+  if (!v) { showToast(L('Please enter your name','Por favor ingrese su nombre')); return; }
+  if (!isFullName(v)) { showToast(L('Please enter your first and last name','Por favor ingrese su nombre y apellido')); return; }
+  if (!loc) { showToast(L('Please select your location','Por favor seleccione su ubicación')); return; }
   state.employeeName = v;
   state.location = loc;
   localStorage.setItem('gwpg_st_name', v);
@@ -2993,14 +3044,14 @@ function timeAgo(iso){
   if (diffMs < 0) return new Date(iso).toLocaleDateString();
   if (diffMs < day) {
     const hrs = Math.floor(diffMs / 3600000);
-    if (hrs < 1) return 'Just now';
-    return hrs === 1 ? '1 hour ago' : hrs + ' hours ago';
+    if (hrs < 1) return L('Just now','Justo ahora');
+    return hrs === 1 ? L('1 hour ago','hace 1 hora') : L(hrs + ' hours ago','hace ' + hrs + ' horas');
   }
   const days = Math.floor(diffMs / day);
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return days + ' days ago';
-  if (days < 30) { const w = Math.floor(days/7); return w === 1 ? '1 week ago' : w + ' weeks ago'; }
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (days === 1) return L('Yesterday','Ayer');
+  if (days < 7) return L(days + ' days ago','hace ' + days + ' días');
+  if (days < 30) { const w = Math.floor(days/7); return w === 1 ? L('1 week ago','hace 1 semana') : L(w + ' weeks ago','hace ' + w + ' semanas'); }
+  return new Date(iso).toLocaleDateString(appLang()==='es' ? 'es-US' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const FORM_GROUPS = [
@@ -3014,19 +3065,19 @@ const FORM_GROUPS = [
 function cadenceStatusHtml(f, lastMap){
   const lastTs = lastMap[f.id];
   if (!lastTs) {
-    return `<span class="fi-overdue">🔴 Never completed — due now</span>`;
+    return `<span class="fi-overdue">🔴 ${L('Never completed — due now','Nunca completada — vence ahora')}</span>`;
   }
   const daysSince = Math.floor((Date.now() - new Date(lastTs).getTime()) / 86400000);
   if (daysSince > f.cadenceDays) {
-    return `<span class="fi-overdue">🔴 Overdue — last done ${esc(timeAgo(lastTs))}</span>`;
+    return `<span class="fi-overdue">🔴 ${L('Overdue — last done','Vencida — última vez')} ${esc(timeAgo(lastTs))}</span>`;
   }
-  return `<span class="fi-ok">✅ Done ${esc(timeAgo(lastTs))}</span>`;
+  return `<span class="fi-ok">✅ ${L('Done','Hecha')} ${esc(timeAgo(lastTs))}</span>`;
 }
 
 function formItemHtml(f, lastMap){
   const isReport = f.template === 'report';
-  const lastLabel = isReport ? 'Last reported ' : 'Last inspected ';
-  const notYetLabel = isReport ? 'No reports yet' : 'Not yet inspected';
+  const lastLabel = isReport ? L('Last reported ','Último reporte ') : L('Last inspected ','Última inspección ');
+  const notYetLabel = isReport ? L('No reports yet','Aún sin reportes') : L('Not yet inspected','Aún sin inspeccionar');
   const suppressNormal = (f.template === 'machine' || f.template === 'orientation' || f.id === 'daily-forklift');
   let statusLine;
   if (!state.historyLoaded) {
@@ -3043,7 +3094,7 @@ function formItemHtml(f, lastMap){
         <div class="fi-left">
           <div class="fi-icon">${iconFor(f)}</div>
           <div>
-            <div class="fi-title">${esc(f.title)}</div>
+            <div class="fi-title">${esc(formTitle(f))}</div>
             <div class="fi-meta">${badgeFor(f)}${isReport ? '' : ' &nbsp;' + esc(f.code)}</div>
             <div class="fi-lastinspected">${statusLine}</div>
           </div>
@@ -3055,7 +3106,7 @@ function formItemHtml(f, lastMap){
 function homeHtml(){
   const q = state.search.toLowerCase();
   const locForms = FORMS.filter(f => !f.location || f.location === state.location);
-  const list = locForms.filter(f => !q || f.title.toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
+  const list = locForms.filter(f => !q || f.title.toLowerCase().includes(q) || formTitle(f).toLowerCase().includes(q) || (f.dept||'').toLowerCase().includes(q));
   const lastMap = lastInspectedMap();
   const searching = !!q;
 
@@ -3065,7 +3116,7 @@ function homeHtml(){
     const expanded = searching || !state.collapsedGroups[g.key];
     return `
     <div class="grouptitle" onclick="toggleGroup('${g.key}')">
-      <span>${g.label} <span class="groupcount">${groupForms.length}</span></span>
+      <span>${groupLabel(g)} <span class="groupcount">${groupForms.length}</span></span>
       <span class="groupchevron ${expanded?'open':''}">›</span>
     </div>
     ${expanded ? `
@@ -3076,13 +3127,13 @@ function homeHtml(){
 
   return `
   <div class="hero">
-    <h1>Safety Checklists - ${esc(state.location)}</h1>
-    <p>Select a checklist below to complete it. Your submission is saved automatically.</p>
+    <h1>${L('Safety Checklists','Listas de Seguridad')} - ${esc(state.location)}</h1>
+    <p>${L('Select a checklist below to complete it. Your submission is saved automatically.','Seleccione una lista abajo para completarla. Su envío se guarda automáticamente.')}</p>
   </div>
-  <input class="searchbox" id="searchInput" placeholder="Search checklists..." value="${esc(state.search)}" />
+  <input class="searchbox" id="searchInput" placeholder="${L('Search checklists...','Buscar listas...')}" value="${esc(state.search)}" />
   ${groupsHtml}
-  ${list.length === 0 && locForms.length === 0 ? `<div class="empty">No checklists have been set up yet for ${esc(state.location)}. Check back soon.</div>` : ''}
-  ${list.length === 0 && locForms.length > 0 ? `<div class="empty">No checklists match "${esc(state.search)}"</div>` : ''}
+  ${list.length === 0 && locForms.length === 0 ? `<div class="empty">${L('No checklists have been set up yet for','Aún no hay listas configuradas para')} ${esc(state.location)}. ${L('Check back soon.','Vuelva pronto.')}</div>` : ''}
+  ${list.length === 0 && locForms.length > 0 ? `<div class="empty">${L('No checklists match','Ninguna lista coincide con')} "${esc(state.search)}"</div>` : ''}
   `;
 }
 
@@ -3113,7 +3164,7 @@ function formHtml(){
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;">
       <div>
-        <h2 style="margin:0 0 4px;">${esc(f.title)}</h2>
+        <h2 style="margin:0 0 4px;">${esc(formTitle(f))}</h2>
         <div style="font-size:12.5px;color:var(--text-mute);">${(f.template !== 'report') ? esc(f.code) + ' &middot; ' : ''}${esc(f.dept||'')}</div>
       </div>
       ${badgeFor(f)}
@@ -3876,17 +3927,17 @@ function qrCodesHtml(){
   );
   return `
   <div class="hero">
-    <h1>QR Codes</h1>
-    <p>Print one of these and post it at each machine (or common areas, for the hazard-report code). Scanning it opens that checklist directly — the employee just enters their name (and signs, where required) and submits.</p>
+    <h1>${L('QR Codes','Códigos QR')}</h1>
+    <p>${L('Print one of these and post it at each machine (or common areas, for the hazard-report code). Scanning it opens that checklist directly — the employee just enters their name (and signs, where required) and submits.','Imprima uno de estos y colóquelo en cada máquina (o en áreas comunes, para el código de reporte de peligros). Al escanearlo se abre esa lista directamente — el empleado solo ingresa su nombre (y firma, donde se requiera) y la envía.')}</p>
   </div>
-  <div style="margin-bottom:14px;"><button class="btn secondary" onclick="window.print()">🖨️ Print All</button></div>
+  <div style="margin-bottom:14px;"><button class="btn secondary" onclick="window.print()">🖨️ ${L('Print All','Imprimir Todo')}</button></div>
   <div class="qrgrid">
     ${qrForms.map(f => {
       const isMachine = f.template === 'machine';
       const isReport = f.template === 'report';
       const isOrientation = f.template === 'orientation';
-      const topLine = isMachine ? 'Monthly Machine Safety Checklist' : (isOrientation ? 'Machine Safety Orientation' : f.title);
-      const subLine = isMachine ? f.machine : (isReport ? 'Scan to report a hazard or concern' : (isOrientation ? f.machine : f.code));
+      const topLine = isMachine ? L('Monthly Machine Safety Checklist','Lista de Seguridad Mensual de Máquina') : (isOrientation ? L('Machine Safety Orientation','Orientación de Seguridad de Máquina') : formTitle(f));
+      const subLine = isMachine ? f.machine : (isReport ? L('Scan to report a hazard or concern','Escanee para reportar un peligro o preocupación') : (isOrientation ? f.machine : f.code));
       return `
       <div class="qrcard">
         <div class="qrcanvaswrap"><img src="${qrDataUrl(qrLinkFor(f))}" width="180" height="180" alt="QR code for ${esc(topLine)}"></div>
@@ -3895,7 +3946,7 @@ function qrCodesHtml(){
       </div>`;
     }).join('')}
   </div>
-  ${qrForms.length === 0 ? `<div class="empty">No checklists set up for ${esc(state.location)}.</div>` : ''}
+  ${qrForms.length === 0 ? `<div class="empty">${L('No checklists set up for','No hay listas configuradas para')} ${esc(state.location)}.</div>` : ''}
   `;
 }
 
@@ -3906,16 +3957,16 @@ function openItemsHtml(){
 
   return `
   <div class="hero">
-    <h1>Open Items</h1>
-    <p>Every item flagged "Needs Attention" on a recent inspection, newest first. This is a read-only list — there's no close/resolve step yet, so treat it as a quick scan of what's been reported, not a live open/closed tracker.</p>
+    <h1>${L('Open Items','Pendientes')}</h1>
+    <p>${L('Every item flagged "Needs Attention" on a recent inspection, newest first. This is a read-only list — there\'s no close/resolve step yet, so treat it as a quick scan of what\'s been reported, not a live open/closed tracker.','Cada elemento marcado como "Requiere Atención" en una inspección reciente, del más nuevo al más antiguo. Es una lista de solo lectura — aún no hay paso para cerrar o resolver, así que úsela como un vistazo rápido de lo reportado, no como un seguimiento de abiertos/cerrados.')}</p>
   </div>
   <div class="filterbar">
     <select id="openItemsLocFilter" onchange="setOpenItemsLocFilter(this.value)">
-      <option value="all" ${locFilter==='all'?'selected':''}>All locations</option>
+      <option value="all" ${locFilter==='all'?'selected':''}>${L('All locations','Todas las ubicaciones')}</option>
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${locFilter===l?'selected':''}>${esc(l)}</option>`).join('')}
     </select>
   </div>
-  ${rows.length === 0 ? `<div class="empty">No flagged items${locFilter!=='all' ? ' for ' + esc(locFilter) : ''}. 🎉</div>` : rows.map(r => openItemRowHtml(r)).join('')}
+  ${rows.length === 0 ? `<div class="empty">${L('No flagged items','Sin elementos marcados')}${locFilter!=='all' ? L(' for ',' para ') + esc(locFilter) : ''}. 🎉</div>` : rows.map(r => openItemRowHtml(r)).join('')}
   `;
 }
 
@@ -3925,7 +3976,7 @@ function openItemRowHtml(r){
   const f = getForm(r.formId);
   let itemLabel;
   if (r.isReport) {
-    itemLabel = r.area ? r.area : 'Reported concern';
+    itemLabel = r.area ? r.area : L('Reported concern','Preocupación reportada');
   } else {
     const lang = (f && f.bilingual && (state.historyItems.find(s=>s.id===r.submissionId)||{}).data?.lang === 'es') ? 'es' : 'en';
     itemLabel = r.itemKey.split('||')[1];
@@ -3944,8 +3995,8 @@ function openItemRowHtml(r){
     <div class="h-top">
       <span>${icon} ${esc(itemLabel)}</span>
       <span style="display:flex;align-items:center;gap:8px;">
-        <span class="pill ${pillClass}">${esc(r.formTitle)}</span>
-        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="Delete" onclick="deleteSubmission('${escJs(r.submissionId)}', event)">🗑️</button>` : ''}
+        <span class="pill ${pillClass}">${esc(titleStr(r.formTitle))}</span>
+        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="${L('Delete','Eliminar')}" onclick="deleteSubmission('${escJs(r.submissionId)}', event)">🗑️</button>` : ''}
       </span>
     </div>
     <div class="h-meta">${esc(r.employeeName)}${r.location ? ' &middot; 📍 ' + esc(r.location) : ''} &middot; ${esc(dt)}</div>
@@ -3997,19 +4048,19 @@ function trainingRecordsHtml(){
 
   return `
   <div class="hero">
-    <h1>Training Records</h1>
-    <p>Who's completed which Machine Safety Orientation, grouped by employee. ${totalMachines} orientations available at ${esc(state.location)}.</p>
+    <h1>${L('Training Records','Registros de Capacitación')}</h1>
+    <p>${L('Who\'s completed which Machine Safety Orientation, grouped by employee.','Quién ha completado cada Orientación de Seguridad de Máquina, agrupado por empleado.')} ${totalMachines} ${L('orientations available at','orientaciones disponibles en')} ${esc(state.location)}.</p>
   </div>
   <div class="filterbar">
-    <input type="text" id="trainingSearch" placeholder="Search employee or machine..." value="${esc(state.trainingSearch)}" oninput="setTrainingSearch(this.value)">
+    <input type="text" id="trainingSearch" placeholder="${L('Search employee or machine...','Buscar empleado o máquina...')}" value="${esc(state.trainingSearch)}" oninput="setTrainingSearch(this.value)">
   </div>
-  ${employees.length === 0 ? `<div class="empty">No orientation records found${searching ? ' for "' + esc(state.trainingSearch) + '"' : ''}.</div>` : employees.map(([name, records]) => {
+  ${employees.length === 0 ? `<div class="empty">${L('No orientation records found','No se encontraron registros de orientación')}${searching ? L(' for ',' para ') + '"' + esc(state.trainingSearch) + '"' : ''}.</div>` : employees.map(([name, records]) => {
     const key = slug(name);
     const expanded = searching || !!state.trainingExpanded[key];
     const uniqueMachines = new Set(records.map(r => r.formId)).size;
     return `
     <div class="grouptitle" onclick="toggleTrainingGroup('${escJs(key)}')">
-      <span>${esc(name)} <span class="groupcount">${uniqueMachines} of ${totalMachines}</span></span>
+      <span>${esc(name)} <span class="groupcount">${uniqueMachines} ${L('of','de')} ${totalMachines}</span></span>
       <span class="groupchevron ${expanded?'open':''}">›</span>
     </div>
     ${expanded ? `<div class="formlist">${records.map(r => trainingRowHtml(r)).join('')}</div>` : ''}`;
@@ -4024,14 +4075,14 @@ function setTrainingSearch(v){ state.trainingSearch = v; render(); }
 
 function trainingRowHtml(r){
   const f = getForm(r.formId);
-  const dt = r.submittedAtLocal ? new Date(r.submittedAtLocal).toLocaleDateString() : '';
+  const dt = r.submittedAtLocal ? new Date(r.submittedAtLocal).toLocaleDateString(dateLocale()) : '';
   return `
   <div class="histitem" onclick="openDetail('${escJs(r.id)}', 'training')">
     <div class="h-top">
       <span>🎓 ${esc(f ? f.machine : r.formTitle)}</span>
       <span class="pill Satisfactory">${esc(dt)}</span>
     </div>
-    <div class="h-meta">${r.data && r.data.trainedBy ? 'Trained by ' + esc(r.data.trainedBy) : 'No trainer listed'}</div>
+    <div class="h-meta">${r.data && r.data.trainedBy ? L('Trained by ','Capacitado por ') + esc(r.data.trainedBy) : L('No trainer listed','Sin capacitador registrado')}</div>
   </div>`;
 }
 
@@ -4302,23 +4353,23 @@ function historyHtml(){
 
   return `
   <div class="hero">
-    <h1>History</h1>
-    <p>Every submitted checklist, grouped by type. ${items.length} submission${items.length===1?'':'s'} at ${esc(state.location)}.</p>
+    <h1>${L('History','Historial')}</h1>
+    <p>${L('Every submitted checklist, grouped by type.','Cada lista enviada, agrupada por tipo.')} ${items.length} ${L('submission'+(items.length===1?'':'s'), items.length===1?'envío':'envíos')} ${L('at','en')} ${esc(state.location)}.</p>
   </div>
   <div class="filterbar">
     <select id="histLocationFilter" onchange="setHistLocationFilter(this.value)">
-      <option value="all">All locations</option>
+      <option value="all">${L('All locations','Todas las ubicaciones')}</option>
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${state.historyFilterLocation===l?'selected':''}>${esc(l)}</option>`).join('')}
     </select>
-    <input type="text" id="histSearch" placeholder="Search employee, machine, location, notes..." value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
-    <button class="btn ghost" onclick="exportHistoryCsv()">Export CSV</button>
+    <input type="text" id="histSearch" placeholder="${L('Search employee, machine, location, notes...','Buscar empleado, máquina, ubicación, notas...')}" value="${esc(state.historySearch)}" oninput="setHistSearch(this.value)">
+    <button class="btn ghost" onclick="exportHistoryCsv()">${L('Export CSV','Exportar CSV')}</button>
   </div>
-  ${groups.length === 0 ? `<div class="empty">No submissions found.</div>` : groups.map(g => {
+  ${groups.length === 0 ? `<div class="empty">${L('No submissions found.','No se encontraron envíos.')}</div>` : groups.map(g => {
     const key = g.formId;
     const expanded = searching || !!state.historyExpandedGroups[key];
     return `
     <div class="grouptitle" onclick="toggleHistoryGroup('${escJs(key)}')">
-      <span>${esc(g.formTitle)} <span class="groupcount">${g.items.length}</span></span>
+      <span>${esc(titleStr(g.formTitle))} <span class="groupcount">${g.items.length}</span></span>
       <span class="groupchevron ${expanded?'open':''}">›</span>
     </div>
     ${expanded ? g.items.map(i => histItemHtml(i)).join('') : ''}`;
@@ -4361,15 +4412,15 @@ async function deleteSubmission(id, evt){
 
 function histItemHtml(i){
   const result = i.data && i.data.overallResult;
-  const dt = i.submittedAtLocal ? new Date(i.submittedAtLocal).toLocaleString() : '';
+  const dt = i.submittedAtLocal ? new Date(i.submittedAtLocal).toLocaleString(dateLocale()) : '';
   return `
   <div class="histitem" onclick="openDetail('${i.id}', 'history')">
     <div class="h-top">
-      <span>${esc(i.formTitle)}</span>
+      <span>${esc(titleStr(i.formTitle))}</span>
       <span style="display:flex;align-items:center;gap:8px;">
-        ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">Acknowledged</span>' : '')}
-        <button type="button" class="histprintbtn" title="Print" onclick="printSubmission('${escJs(i.id)}', event)">🖨️</button>
-        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="Delete" onclick="deleteSubmission('${escJs(i.id)}', event)">🗑️</button>` : ''}
+        ${result ? `<span class="pill ${result}">${esc(RESULT_OPTIONS.find(r=>r.key===result)?.label || result)}</span>` : (i.template==='machine' ? '<span class="pill Satisfactory">' + L('Acknowledged','Reconocido') + '</span>' : '')}
+        <button type="button" class="histprintbtn" title="${L('Print','Imprimir')}" onclick="printSubmission('${escJs(i.id)}', event)">🖨️</button>
+        ${canDelete() ? `<button type="button" class="histprintbtn histdeletebtn" title="${L('Delete','Eliminar')}" onclick="deleteSubmission('${escJs(i.id)}', event)">🗑️</button>` : ''}
       </span>
     </div>
     <div class="h-meta">${esc(i.employeeName)}${i.location ? ' &middot; 📍 ' + esc(i.location) : ''} &middot; ${esc(dt)}</div>
