@@ -3213,7 +3213,12 @@ function statusButtonsHtml(sectionTitle, itemLabel, current, lang){
       <div class="statusbtn na ${current==='NA'?'active':''}" onclick="setItemStatus('${escJs(key)}','NA')">${t.statusNA}</div>
     </div>`;
 }
-function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+// Escapes a value for use inside a single-quoted JS string that sits inside a double-quoted HTML
+// attribute (onclick="fn('...')"). Quotes, ampersands and angle brackets become \xNN escapes so a
+// label like 86" RS Jumbo can't end the attribute early or be read as an HTML entity.
+function escJs(s){
+  return String(s).replace(/[\\'"&<>\r\n]/g, c => '\\x' + c.charCodeAt(0).toString(16).padStart(2, '0'));
+}
 
 function idFor(key){ return 'it_' + key.replace(/[^a-zA-Z0-9]+/g, '_'); }
 
