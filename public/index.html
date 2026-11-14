@@ -2748,6 +2748,8 @@ const state = {
   settingsOpen: {},   // which Settings sections are expanded (all collapsed by default)
   settingsPasswordEntered: '',
   openItemsFilterLocation: null,
+  openItemsLimit: 100,     // rows shown on Open Items before "Show more"
+  historyRowLimit: 300,    // rows drawn on History at once (matters when a search expands everything)
   historySearch: '',
   detailItem: null,
   detailFrom: 'history',
@@ -2915,8 +2917,25 @@ function dateLocale(){ return appLang() === 'es' ? 'es-US' : undefined; }
 
 function render(){
   const app = document.getElementById('app');
+  // Re-rendering rebuilds every element, which would otherwise take the cursor out of whatever
+  // box is being typed in (search boxes re-render on each letter). Remember the focused field
+  // and put the cursor back in its replacement.
+  const FIELDS = 'input,textarea,select';
+  const active = document.activeElement;
+  let keep = null;
+  if (active && app.contains(active) && active.matches(FIELDS)) {
+    keep = { id: active.id, index: [...app.querySelectorAll(FIELDS)].indexOf(active), tag: active.tagName, type: active.type, start: null, end: null };
+    try { keep.start = active.selectionStart; keep.end = active.selectionEnd; } catch (e) {}
+  }
   app.innerHTML = headerHtml() + '<main>' + screenHtml() + '</main>';
   wireEvents();
+  if (keep) {
+    let el = keep.id ? document.getElementById(keep.id) : app.querySelectorAll(FIELDS)[keep.index];
+    if (el && el.tagName === keep.tag && el.type === keep.type) {
+      el.focus({ preventScroll: true });
+      if (keep.start !== null && keep.start !== undefined) { try { el.setSelectionRange(keep.start, keep.end); } catch (e) {} }
+    }
+  }
 }
 
 const NAV_ICONS = {
@@ -3014,6 +3033,7 @@ function goHistory(){ if(!state.employeeName) return; state.screen='history'; lo
 function goOpenItems(){
   if(!state.employeeName) return;
   state.screen='openitems';
+  state.openItemsLimit = 100;
   if (state.openItemsFilterLocation === null) state.openItemsFilterLocation = state.location;
   loadHistoryIfNeeded();
   render();
@@ -3106,7 +3126,7 @@ function formItemHtml(f, lastMap){
   const notYetLabel = isReport ? L('No reports yet','Aún sin reportes') : L('Not yet inspected','Aún sin inspeccionar');
   const suppressNormal = (f.template === 'machine' || f.template === 'orientation' || f.id === 'daily-forklift');
   let statusLine;
-  if (!state.historyLoaded) {
+  if (!state.historyLoaded && state.historyItems.length === 0) {
     statusLine = '';
   } else if (f.cadenceDays) {
     statusLine = cadenceStatusHtml(f, lastMap);
@@ -3702,6 +3722,7 @@ function cancelForm(){
 
 // ---------- submit ----------
 async function submitForm(){
+  if (state.saving) return; // a second tap while the first save is still in flight would create a duplicate
   const f = getForm(state.activeFormId);
   if (!f) return;
   const d = state.formData;
@@ -3859,19 +3880,136 @@ async function flushPendingQueue(manual){
   return synced;
 }
 
-// ---------- history ----------
-async function loadHistoryIfNeeded(){
-  if (state.historyLoaded) return;
+// ---------- history: on-device cache + incremental sync ----------
+// Submissions are kept in IndexedDB on the device, so screens paint immediately from the cache.
+// A sync then asks the server for the list of ids only, downloads just the records this device
+// doesn't have yet (in small batches) and drops any that were deleted. Nothing is capped, so old
+// records never fall out of History / Training Records as the plant's data grows.
+const HIST_DB = 'gwpg_safetytrack', HIST_STORE = 'submissions';
+const HIST_BATCH = 40;            // records per request (keeps each response small)
+const HIST_REFRESH_MS = 60000;    // re-check the server at most once a minute while browsing
+let histDbPromise = null;
+function histDb(){
+  if (histDbPromise) return histDbPromise;
+  histDbPromise = new Promise(resolve => {
+    try {
+      if (!window.indexedDB) { resolve(null); return; }
+      const req = indexedDB.open(HIST_DB, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(HIST_STORE, { keyPath: 'id' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+      req.onblocked = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+  return histDbPromise;
+}
+async function histCacheAll(){
+  const db = await histDb();
+  if (!db) return [];
+  return new Promise(resolve => {
+    try {
+      const r = db.transaction(HIST_STORE).objectStore(HIST_STORE).getAll();
+      r.onsuccess = () => resolve(r.result || []);
+      r.onerror = () => resolve([]);
+    } catch (e) { resolve([]); }
+  });
+}
+async function histCacheWrite(puts, deletes){
+  const db = await histDb();
+  if (!db) return;
   try {
-    const res = await fetch(API_URL);
+    const os = db.transaction(HIST_STORE, 'readwrite').objectStore(HIST_STORE);
+    (puts || []).forEach(i => { if (i && i.id) os.put(i); });
+    (deletes || []).forEach(id => os.delete(id));
+  } catch (e) { /* cache is best-effort */ }
+}
+function sortHistory(){
+  state.historyItems.sort((a, b) => a.id < b.id ? 1 : a.id > b.id ? -1 : 0); // ids start with a timestamp: newest first
+}
+// Re-render after background data arrives — but never while someone is filling out a form or
+// typing in a field, since a re-render would take the cursor out of the box.
+function renderAfterDataChange(){
+  if (!['home','history','openitems','training'].includes(state.screen)) return;
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  render();
+}
+
+let histSyncPromise = null, histSyncAgain = false, histCacheLoaded = false, histLastSync = 0;
+function loadHistoryIfNeeded(){
+  if (state.historyLoaded && Date.now() - histLastSync < HIST_REFRESH_MS) return Promise.resolve();
+  if (histSyncPromise) {
+    if (!state.historyLoaded) histSyncAgain = true; // something changed mid-sync (e.g. a new submission)
+    return histSyncPromise;
+  }
+  histSyncPromise = syncHistory().finally(() => {
+    histSyncPromise = null;
+    if (histSyncAgain) { histSyncAgain = false; state.historyLoaded = false; loadHistoryIfNeeded(); }
+  });
+  return histSyncPromise;
+}
+async function syncHistory(){
+  let changed = false;
+  if (!histCacheLoaded) {
+    histCacheLoaded = true;
+    const cached = await histCacheAll();
+    if (cached.length && state.historyItems.length === 0) {
+      state.historyItems = cached;
+      sortHistory();
+      renderAfterDataChange();
+    }
+  }
+  try {
+    const res = await fetch(API_URL + '?keys=1', { cache: 'no-store' });
     if (!res.ok) throw new Error('Load failed: ' + res.status);
-    state.historyItems = await res.json();
+    const body = await res.json();
+    if (Array.isArray(body)) {
+      // older server version: the whole list arrives in one response
+      const ids = new Set(body.map(i => i.id));
+      histCacheWrite(body, state.historyItems.filter(i => !ids.has(i.id)).map(i => i.id));
+      state.historyItems = body;
+      sortHistory();
+      changed = true;
+    } else {
+      const keys = body.keys || [];
+      const keySet = new Set(keys);
+      const removed = state.historyItems.filter(i => !keySet.has(i.id)).map(i => i.id);
+      if (removed.length) {
+        state.historyItems = state.historyItems.filter(i => keySet.has(i.id));
+        histCacheWrite([], removed);
+        changed = true;
+      }
+      const have = new Set(state.historyItems.map(i => i.id));
+      const missing = keys.filter(k => !have.has(k)).sort().reverse(); // newest first
+      const batches = [];
+      for (let i = 0; i < missing.length; i += HIST_BATCH) batches.push(missing.slice(i, i + HIST_BATCH));
+      let next = 0;
+      const worker = async () => {
+        while (next < batches.length) {
+          const batch = batches[next++];
+          const r = await fetch(API_URL + '?ids=' + encodeURIComponent(batch.join(',')), { cache: 'no-store' });
+          if (!r.ok) throw new Error('Load failed: ' + r.status);
+          const items = (await r.json()).filter(i => i && i.id && !have.has(i.id));
+          items.forEach(i => have.add(i.id));
+          state.historyItems.push(...items);
+          sortHistory();
+          histCacheWrite(items, []);
+          changed = true;
+          if (next < batches.length) renderAfterDataChange(); // show progress on a long first sync
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+    }
+    const firstLoad = !state.historyLoaded;
     state.historyLoaded = true;
+    histLastSync = Date.now();
+    if (changed || firstLoad) renderAfterDataChange();
   } catch (e) {
     console.error(e);
-    showToast('Could not load history');
+    // offline or server hiccup: keep showing what's cached; only complain if there's nothing to show
+    if (state.historyItems.length === 0) showToast(L('Could not load history','No se pudo cargar el historial'));
+    if (changed) renderAfterDataChange();
   }
-  render();
 }
 
 function collectOpenItems(){
@@ -3908,6 +4046,7 @@ function collectOpenItems(){
         employeeName: sub.employeeName,
         submittedAtLocal: sub.submittedAtLocal,
         itemKey: k,
+        lang: sub.data && sub.data.lang,
         comment: items[k].comment,
         photos: items[k].photos || []
       });
@@ -3994,11 +4133,14 @@ function openItemsHtml(){
       ${LOCATIONS.map(l => `<option value="${esc(l)}" ${locFilter===l?'selected':''}>${esc(l)}</option>`).join('')}
     </select>
   </div>
-  ${rows.length === 0 ? `<div class="empty">${L('No flagged items','Sin elementos marcados')}${locFilter!=='all' ? L(' for ',' para ') + esc(locFilter) : ''}. 🎉</div>` : rows.map(r => openItemRowHtml(r)).join('')}
+  ${rows.length === 0 ? `<div class="empty">${L('No flagged items','Sin elementos marcados')}${locFilter!=='all' ? L(' for ',' para ') + esc(locFilter) : ''}. 🎉</div>` : rows.slice(0, state.openItemsLimit).map(r => openItemRowHtml(r)).join('')}
+  ${rows.length > state.openItemsLimit ? `<div style="text-align:center;margin:14px 0;"><button type="button" class="btn secondary" onclick="showMoreOpenItems()">${L('Show more','Mostrar más')} (${rows.length - state.openItemsLimit} ${L('more','más')})</button></div>` : ''}
   `;
 }
 
-function setOpenItemsLocFilter(v){ state.openItemsFilterLocation = v; render(); }
+const OPEN_ITEMS_PAGE = 100;
+function showMoreOpenItems(){ state.openItemsLimit += OPEN_ITEMS_PAGE * 2; render(); }
+function setOpenItemsLocFilter(v){ state.openItemsFilterLocation = v; state.openItemsLimit = OPEN_ITEMS_PAGE; render(); }
 
 function openItemRowHtml(r){
   const f = getForm(r.formId);
@@ -4006,7 +4148,7 @@ function openItemRowHtml(r){
   if (r.isReport) {
     itemLabel = r.area ? r.area : L('Reported concern','Preocupación reportada');
   } else {
-    const lang = (f && f.bilingual && (state.historyItems.find(s=>s.id===r.submissionId)||{}).data?.lang === 'es') ? 'es' : 'en';
+    const lang = (f && f.bilingual && r.lang === 'es') ? 'es' : 'en';
     itemLabel = r.itemKey.split('||')[1];
     if (f) {
       const [secTitle, itLabel] = r.itemKey.split('||');
@@ -4432,6 +4574,13 @@ function historyHtml(){
     forms.get(i.formId).items.push(i);
   });
   const months = [...monthMap.keys()].sort((a, b) => b.localeCompare(a));
+  let rowBudget = state.historyRowLimit, hiddenRows = 0;
+  const drawRows = (list) => {
+    const shown = list.slice(0, Math.max(0, rowBudget));
+    rowBudget -= shown.length;
+    hiddenRows += list.length - shown.length;
+    return shown.map(i => histItemHtml(i)).join('');
+  };
 
   return `
   <div class="hero">
@@ -4463,11 +4612,13 @@ function historyHtml(){
         <span>${esc(titleStr(g.formTitle))} <span class="groupcount">${g.items.length}</span></span>
         <span class="groupchevron ${expanded?'open':''}">›</span>
       </div>
-      ${expanded ? g.items.map(i => histItemHtml(i)).join('') : ''}`;
+      ${expanded ? drawRows(g.items) : ''}`;
     }).join('')}</div>` : ''}`;
   }).join('')}
+  ${hiddenRows > 0 ? `<div style="text-align:center;margin:14px 0;"><button type="button" class="btn secondary" onclick="showMoreHistory()">${L('Show more','Mostrar más')} (${hiddenRows} ${L('more','más')})</button></div>` : ''}
   `;
 }
+function showMoreHistory(){ state.historyRowLimit += 600; render(); }
 function toggleHistoryMonth(key){
   state.historyOpenMonths[key] = !isMonthOpen(key);
   render();
@@ -4476,8 +4627,8 @@ function toggleHistoryGroup(key){
   state.historyExpandedGroups[key] = !state.historyExpandedGroups[key];
   render();
 }
-function setHistLocationFilter(v){ state.historyFilterLocation = v; render(); }
-function setHistSearch(v){ state.historySearch = v; render(); }
+function setHistLocationFilter(v){ state.historyFilterLocation = v; state.historyRowLimit = 300; render(); }
+function setHistSearch(v){ state.historySearch = v; state.historyRowLimit = 300; render(); }
 
 function canDelete(){
   return state.employeeName && state.employeeName.trim().toLowerCase() === 'brian nguyen';
@@ -4494,6 +4645,7 @@ async function deleteSubmission(id, evt){
     });
     if (!res.ok) throw new Error('Delete failed: ' + res.status);
     state.historyItems = state.historyItems.filter(i => i.id !== id);
+    histCacheWrite([], [id]);
     showToast('Deleted');
     if (state.screen === 'detail' && state.detailItem && state.detailItem.id === id) {
       state.screen = state.detailFrom || 'history';
@@ -4722,7 +4874,7 @@ function exportHistoryCsv(){
 
 function wireEvents(){
   const s = document.getElementById('searchInput');
-  if (s) s.oninput = (e) => { state.search = e.target.value; render(); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
+  if (s) s.oninput = (e) => { state.search = e.target.value; render(); }; // render() keeps the cursor in the box
   const sig = document.getElementById('sigCanvas');
   if (sig) initSignaturePad(sig);
 }
@@ -4772,7 +4924,15 @@ function initSignaturePad(canvas){
   }
   canvas.addEventListener('pointerdown', start);
   canvas.addEventListener('pointermove', move);
+  // Every render builds a fresh canvas; replace the previous pad's window listeners rather than
+  // stacking a new pair on top of the old ones each time.
+  if (window.__sigEnd) {
+    window.removeEventListener('pointerup', window.__sigEnd);
+    window.removeEventListener('pointercancel', window.__sigEnd);
+  }
+  window.__sigEnd = end;
   window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
 }
 
 function clearSignature(){

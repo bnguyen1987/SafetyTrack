@@ -72,6 +72,17 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET') {
       const url = new URL(req.url, 'http://x');
       const formId = url.searchParams.get('formId');
+      if (url.searchParams.has('keys')) {
+        res.writeHead(200, {'content-type':'application/json'});
+        res.end(JSON.stringify({ keys: submissions.map(r => r.id).sort().reverse() }));
+        return;
+      }
+      if (url.searchParams.get('ids') !== null) {
+        const ids = new Set(url.searchParams.get('ids').split(',').slice(0, 60));
+        res.writeHead(200, {'content-type':'application/json'});
+        res.end(JSON.stringify(submissions.filter(r => ids.has(r.id))));
+        return;
+      }
       let results = submissions.slice().reverse();
       if (formId) results = results.filter(r => r.formId === formId);
       res.writeHead(200, {'content-type':'application/json'});

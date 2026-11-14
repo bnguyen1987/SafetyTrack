@@ -94,3 +94,12 @@ to each sticker.
   isn't automated; the home screen flags Monthly Machine Safety Checklists
   and the Fire Extinguisher Inspection as overdue after 30 days with no new
   submission, but there's no automated reminder/notification beyond that.
+
+## History loading (on-device cache + incremental sync)
+
+The app keeps submissions in IndexedDB on each device and paints History, Open Items, Training
+Records and the due/overdue badges from that cache straight away. It then calls
+`GET /api/submissions?keys=1` (ids only) and downloads just the records the device is missing with
+`GET /api/submissions?ids=a,b,c` (up to 60 per request), removing any that were deleted elsewhere.
+There is no cap on how many submissions are kept. The plain `GET /api/submissions` (newest 500 in
+one response) is still served for older cached copies of the app.

@@ -68,6 +68,9 @@ function resolveMachineName(submission: any): string | null {
   return FORM_MACHINE_NAME[formId] || null;
 }
 
+// RepairTrack is best-effort: never let a slow Firebase call hold up the employee's "Submitted".
+const RT_TIMEOUT_MS = 6000;
+
 async function getAnonymousIdToken(): Promise<string | null> {
   try {
     const res = await fetch(
@@ -75,7 +78,8 @@ async function getAnonymousIdToken(): Promise<string | null> {
       {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ returnSecureToken: true })
+        body: JSON.stringify({ returnSecureToken: true }),
+        signal: AbortSignal.timeout(RT_TIMEOUT_MS)
       }
     );
     if (!res.ok) return null;
@@ -89,19 +93,20 @@ async function getAnonymousIdToken(): Promise<string | null> {
 async function photosToDataUrls(photos: { key: string }[] | undefined): Promise<string[]> {
   if (!photos || photos.length === 0) return [];
   const store = getStore("safety-inspection-photos");
-  const out: string[] = [];
-  for (const p of photos.slice(0, 3)) {
-    try {
-      const result = await store.getWithMetadata(p.key, { type: "arrayBuffer" });
-      if (!result) continue;
-      const contentType = (result.metadata as any)?.contentType || "image/jpeg";
-      const base64 = Buffer.from(result.data as ArrayBuffer).toString("base64");
-      out.push(`data:${contentType};base64,${base64}`);
-    } catch {
-      // skip this one photo, keep going
-    }
-  }
-  return out;
+  const out = await Promise.all(
+    photos.slice(0, 3).map(async (p) => {
+      try {
+        const result = await store.getWithMetadata(p.key, { type: "arrayBuffer" });
+        if (!result) return null;
+        const contentType = (result.metadata as any)?.contentType || "image/jpeg";
+        const base64 = Buffer.from(result.data as ArrayBuffer).toString("base64");
+        return `data:${contentType};base64,${base64}`;
+      } catch {
+        return null; // skip this one photo, keep the rest
+      }
+    })
+  );
+  return out.filter((x): x is string => !!x);
 }
 
 function priorityFor(overallResult: string | undefined): string {
@@ -120,9 +125,6 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
     if (!machineName) return 0;
     const machineId = MACHINE_NAME_TO_ID[machineName];
     if (!machineId) return 0;
-
-    const idToken = await getAnonymousIdToken();
-    if (!idToken) return 0;
 
     const location = submission.location || "Ontario";
     const reporter = submission.employeeName || "SafetyTrack";
@@ -169,20 +171,28 @@ export async function pushFlaggedItemsToRepairTrack(submission: any): Promise<nu
       }
     }
 
-    let pushed = 0;
-    for (const issue of issues) {
-      try {
-        const res = await fetch(`${RT_DB_URL}/issues.json?auth=${idToken}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(issue)
-        });
-        if (res.ok) pushed++;
-      } catch {
-        // best-effort; keep trying remaining issues
-      }
-    }
-    return pushed;
+    // Nothing flagged: skip the Firebase sign-in entirely (most submissions take this path).
+    if (issues.length === 0) return 0;
+    const idToken = await getAnonymousIdToken();
+    if (!idToken) return 0;
+
+    // Send all issues at once rather than one after another.
+    const results = await Promise.all(
+      issues.map(async (issue) => {
+        try {
+          const res = await fetch(`${RT_DB_URL}/issues.json?auth=${idToken}`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(issue),
+            signal: AbortSignal.timeout(RT_TIMEOUT_MS)
+          });
+          return res.ok;
+        } catch {
+          return false; // best-effort; the others still go through
+        }
+      })
+    );
+    return results.filter(Boolean).length;
   } catch (e) {
     console.error("pushFlaggedItemsToRepairTrack failed", e);
     return 0;

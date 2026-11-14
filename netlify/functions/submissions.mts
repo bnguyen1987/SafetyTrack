@@ -3,7 +3,10 @@ import { getStore } from "@netlify/blobs";
 import { pushFlaggedItemsToRepairTrack } from "./lib/repairtrack.mts";
 
 const STORE_NAME = "safety-inspections";
-const MAX_LIST = 500;
+const MAX_LIST = 500;   // legacy full-list response only
+const MAX_BATCH = 60;   // records per ?ids= request
+
+const JSON_NO_STORE = { "content-type": "application/json", "cache-control": "no-store" };
 
 export default async (req: Request, context: Context) => {
   const store = getStore(STORE_NAME);
@@ -44,6 +47,28 @@ export default async (req: Request, context: Context) => {
     const url = new URL(req.url);
     const formId = url.searchParams.get("formId");
 
+    // Incremental sync, step 1: just the ids of every submission (one cheap list call).
+    // The app compares these with what it already has cached on the device.
+    if (url.searchParams.has("keys")) {
+      const { blobs } = await store.list();
+      const keys = blobs.map((b) => b.key).sort().reverse();
+      return new Response(JSON.stringify({ keys }), { status: 200, headers: JSON_NO_STORE });
+    }
+
+    // Incremental sync, step 2: only the records the device is missing, in small batches.
+    const idsParam = url.searchParams.get("ids");
+    if (idsParam !== null) {
+      const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, MAX_BATCH);
+      const batch = await Promise.all(
+        ids.map(async (key) => {
+          const data = await store.get(key, { type: "json" });
+          return data ? { id: key, ...data } : null;
+        })
+      );
+      return new Response(JSON.stringify(batch.filter(Boolean)), { status: 200, headers: JSON_NO_STORE });
+    }
+
+    // Legacy: newest MAX_LIST submissions in one response (kept for any older cached copy of the app).
     const { blobs } = await store.list();
     const sortedKeys = blobs.map((b) => b.key).sort().reverse().slice(0, MAX_LIST);
 
